@@ -1,13 +1,13 @@
 import json
-import uuid
 
 from .errors import ApiError
+from src.domain.ports import VisitorCounter
 
 
 _ALLOWED_CONTENT_TYPE = "application/json"
 
 
-def handle_visitors_request(request, counter) -> dict:
+def handle_visitors_request(request, counter: VisitorCounter) -> dict:
     if request.method != "GET":
         raise ApiError(405, "METHOD_NOT_ALLOWED", "Only GET is supported.")
 
@@ -38,14 +38,7 @@ def _validate_body(request) -> None:
     if content_type.split(";", 1)[0].strip().lower() == _ALLOWED_CONTENT_TYPE:
         try:
             json.loads(body.decode("utf-8"))
-        except (UnicodeDecodeError, json.JSONDecodeError):
-            raise ApiError(400, "BAD_REQUEST", "Request body must contain valid JSON.")
+        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise ApiError(400, "BAD_REQUEST", "Request body must contain valid JSON.") from exc
+
     raise ApiError(400, "BAD_REQUEST", "Request body is not supported.")
-
-
-def is_uuid_v4(value: str) -> bool:
-    try:
-        parsed = uuid.UUID(value)
-    except (ValueError, AttributeError, TypeError):
-        return False
-    return parsed.version == 4
