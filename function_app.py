@@ -18,9 +18,10 @@ counter = InMemoryVisitorCounter()
     methods=["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"],
 )
 def visitors(req: func.HttpRequest) -> func.HttpResponse:
-    request_id = _request_id(req)
+    request_id = str(uuid.uuid4())
 
     try:
+        request_id = _validated_request_id(req)
         result = handle_visitors_request(req, counter)
         return _json_response(
             status_code=200,
@@ -47,17 +48,20 @@ def visitors(req: func.HttpRequest) -> func.HttpResponse:
         )
 
 
-def _request_id(req: func.HttpRequest) -> str:
+def _validated_request_id(req: func.HttpRequest) -> str:
     supplied = req.headers.get("X-Request-ID")
-    if supplied:
-        try:
-            parsed = uuid.UUID(supplied)
-        except ValueError:
-            raise ApiError(400, "BAD_REQUEST", "X-Request-ID must be a UUID v4.")
-        if parsed.version != 4:
-            raise ApiError(400, "BAD_REQUEST", "X-Request-ID must be a UUID v4.")
-        return str(parsed)
-    return str(uuid.uuid4())
+    if not supplied:
+        return str(uuid.uuid4())
+
+    try:
+        parsed = uuid.UUID(supplied)
+    except ValueError as exc:
+        raise ApiError(400, "BAD_REQUEST", "X-Request-ID must be a UUID v4.") from exc
+
+    if parsed.version != 4:
+        raise ApiError(400, "BAD_REQUEST", "X-Request-ID must be a UUID v4.")
+
+    return str(parsed)
 
 
 def _json_response(status_code: int, body: dict[str, Any], request_id: str) -> func.HttpResponse:
