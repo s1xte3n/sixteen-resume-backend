@@ -28,7 +28,7 @@ class TableVisitorCounter:
         *,
         partition_key: str = "VisitorCounter",
         row_key: str = "Global",
-        max_retries: int = 8,
+        max_retries: int = 64,
         retry_delay_seconds: float = 0.01,
     ) -> None:
         if max_retries < 1:
