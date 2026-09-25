@@ -78,7 +78,6 @@ def test_unsupported_method_returns_405_without_increment():
 def test_query_parameters_return_400_without_increment():
     before = counter.count
     request = _request(url="http://localhost/api/visitors?foo=bar")
-    request.params["foo"] = "bar"
 
     response = visitors(request)
 
