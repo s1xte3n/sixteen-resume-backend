@@ -1,0 +1,344 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "location": {
+      "type": "string",
+      "defaultValue": "eastus",
+      "allowedValues": [
+        "eastus"
+      ],
+      "metadata": {
+        "description": "Approved Azure deployment region."
+      }
+    },
+    "environmentName": {
+      "type": "string",
+      "defaultValue": "production",
+      "allowedValues": [
+        "production"
+      ],
+      "metadata": {
+        "description": "Approved single deployment environment."
+      }
+    },
+    "frontendStorageAccountName": {
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 24,
+      "metadata": {
+        "description": "Globally unique StorageV2 account name for the Azure Storage static website."
+      }
+    },
+    "functionStorageAccountName": {
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 24,
+      "metadata": {
+        "description": "Globally unique StorageV2 account name required by the Azure Functions Consumption host."
+      }
+    },
+    "functionPlanName": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 40,
+      "metadata": {
+        "description": "Azure Functions Consumption hosting plan name."
+      }
+    },
+    "functionAppName": {
+      "type": "string",
+      "minLength": 2,
+      "maxLength": 60,
+      "metadata": {
+        "description": "Globally unique Linux Azure Function App name."
+      }
+    },
+    "cosmosAccountName": {
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 50,
+      "metadata": {
+        "description": "Globally unique Azure Cosmos DB for Table account name."
+      }
+    },
+    "cosmosTableName": {
+      "type": "string",
+      "defaultValue": "VisitorCounter",
+      "minLength": 3,
+      "maxLength": 63,
+      "metadata": {
+        "description": "Single logical Cosmos DB Table API table owned by the backend."
+      }
+    },
+    "corsAllowedOrigin": {
+      "type": "string",
+      "minLength": 8,
+      "maxLength": 2048,
+      "metadata": {
+        "description": "Exact production frontend origin allowed to call the Function API."
+      }
+    }
+  },
+  "variables": {
+    "tags": {
+      "project": "azure-cloud-resume-challenge",
+      "environment": "[parameters('environmentName')]",
+      "managedBy": "arm",
+      "repository": "s1xte3n/sixteen-resume-backend"
+    },
+    "functionStorageConnectionString": "[concat('DefaultEndpointsProtocol=https;AccountName=', parameters('functionStorageAccountName'), ';EndpointSuffix=', environment().suffixes.storage, ';AccountKey=', listKeys(resourceId('Microsoft.Storage/storageAccounts', parameters('functionStorageAccountName')), '2023-05-01').keys[0].value)]"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Storage/storageAccounts",
+      "apiVersion": "2023-05-01",
+      "name": "[parameters('frontendStorageAccountName')]",
+      "location": "[parameters('location')]",
+      "tags": "[variables('tags')]",
+      "sku": {
+        "name": "Standard_LRS"
+      },
+      "kind": "StorageV2",
+      "properties": {
+        "accessTier": "Hot",
+        "allowBlobPublicAccess": false,
+        "allowCrossTenantReplication": false,
+        "allowSharedKeyAccess": true,
+        "minimumTlsVersion": "TLS1_2",
+        "publicNetworkAccess": "Enabled",
+        "supportsHttpsTrafficOnly": true
+      }
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts/blobServices",
+      "apiVersion": "2025-08-01",
+      "name": "[format('{0}/default', parameters('frontendStorageAccountName'))]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts', parameters('frontendStorageAccountName'))]"
+      ],
+      "properties": {
+        "staticWebsite": {
+          "enabled": true,
+          "indexDocument": "index.html",
+          "errorDocument404Path": "404.html"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts",
+      "apiVersion": "2023-05-01",
+      "name": "[parameters('functionStorageAccountName')]",
+      "location": "[parameters('location')]",
+      "tags": "[variables('tags')]",
+      "sku": {
+        "name": "Standard_LRS"
+      },
+      "kind": "StorageV2",
+      "properties": {
+        "accessTier": "Hot",
+        "allowBlobPublicAccess": false,
+        "allowCrossTenantReplication": false,
+        "allowSharedKeyAccess": true,
+        "minimumTlsVersion": "TLS1_2",
+        "publicNetworkAccess": "Enabled",
+        "supportsHttpsTrafficOnly": true
+      }
+    },
+    {
+      "type": "Microsoft.Web/serverfarms",
+      "apiVersion": "2022-03-01",
+      "name": "[parameters('functionPlanName')]",
+      "location": "[parameters('location')]",
+      "tags": "[variables('tags')]",
+      "sku": {
+        "name": "Y1",
+        "tier": "Dynamic"
+      },
+      "properties": {
+        "reserved": true
+      }
+    },
+    {
+      "type": "Microsoft.DocumentDB/databaseAccounts",
+      "apiVersion": "2023-04-15",
+      "name": "[parameters('cosmosAccountName')]",
+      "location": "[parameters('location')]",
+      "tags": "[variables('tags')]",
+      "kind": "GlobalDocumentDB",
+      "properties": {
+        "databaseAccountOfferType": "Standard",
+        "enableAutomaticFailover": false,
+        "enableMultipleWriteLocations": false,
+        "disableLocalAuth": true,
+        "publicNetworkAccess": "Enabled",
+        "networkAclBypass": "None",
+        "locations": [
+          {
+            "locationName": "[parameters('location')]",
+            "failoverPriority": 0,
+            "isZoneRedundant": false
+          }
+        ],
+        "consistencyPolicy": {
+          "defaultConsistencyLevel": "Session"
+        },
+        "capabilities": [
+          {
+            "name": "EnableTable"
+          },
+          {
+            "name": "EnableServerless"
+          }
+        ]
+      }
+    },
+    {
+      "type": "Microsoft.DocumentDB/databaseAccounts/tables",
+      "apiVersion": "2022-05-15-preview",
+      "name": "[format('{0}/{1}', parameters('cosmosAccountName'), parameters('cosmosTableName'))]",
+      "dependsOn": [
+        "[resourceId('Microsoft.DocumentDB/databaseAccounts', parameters('cosmosAccountName'))]"
+      ],
+      "properties": {
+        "resource": {
+          "id": "[parameters('cosmosTableName')]"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Web/sites",
+      "apiVersion": "2022-03-01",
+      "name": "[parameters('functionAppName')]",
+      "location": "[parameters('location')]",
+      "tags": "[variables('tags')]",
+      "kind": "functionapp,linux",
+      "identity": {
+        "type": "SystemAssigned"
+      },
+      "properties": {
+        "httpsOnly": true,
+        "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', parameters('functionPlanName'))]",
+        "siteConfig": {
+          "linuxFxVersion": "Python|3.12",
+          "minTlsVersion": "1.2",
+          "ftpsState": "Disabled",
+          "cors": {
+            "allowedOrigins": [
+              "[parameters('corsAllowedOrigin')]"
+            ],
+            "supportCredentials": false
+          },
+          "appSettings": [
+            {
+              "name": "FUNCTIONS_EXTENSION_VERSION",
+              "value": "~4"
+            },
+            {
+              "name": "FUNCTIONS_WORKER_RUNTIME",
+              "value": "python"
+            },
+            {
+              "name": "APP_ENV",
+              "value": "production"
+            },
+            {
+              "name": "VISITOR_COUNTER_BACKEND",
+              "value": "table"
+            },
+            {
+              "name": "AZURE_COSMOS_TABLE_NAME",
+              "value": "[parameters('cosmosTableName')]"
+            },
+            {
+              "name": "COSMOS_ENDPOINT",
+              "value": "[reference(resourceId('Microsoft.DocumentDB/databaseAccounts', parameters('cosmosAccountName')), '2023-04-15').documentEndpoint]"
+            },
+            {
+              "name": "COSMOS_PARTITION_KEY",
+              "value": "VisitorCounter"
+            },
+            {
+              "name": "COSMOS_ROW_KEY",
+              "value": "Global"
+            },
+            {
+              "name": "AzureWebJobsStorage",
+              "value": "[variables('functionStorageConnectionString')]"
+            },
+            {
+              "name": "WEBSITE_CONTENTAZUREFILECONNECTIONSTRING",
+              "value": "[variables('functionStorageConnectionString')]"
+            },
+            {
+              "name": "WEBSITE_CONTENTSHARE",
+              "value": "[toLower(parameters('functionAppName'))]"
+            },
+            {
+              "name": "WEBSITE_RUN_FROM_PACKAGE",
+              "value": "1"
+            }
+          ]
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/serverfarms', parameters('functionPlanName'))]",
+        "[resourceId('Microsoft.Storage/storageAccounts', parameters('functionStorageAccountName'))]",
+        "[resourceId('Microsoft.DocumentDB/databaseAccounts', parameters('cosmosAccountName'))]",
+        "[resourceId('Microsoft.DocumentDB/databaseAccounts/tables', parameters('cosmosAccountName'), parameters('cosmosTableName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.DocumentDB/databaseAccounts/tableRoleAssignments",
+      "apiVersion": "2023-04-15",
+      "name": "[format('{0}/{1}', parameters('cosmosAccountName'), guid(resourceId('Microsoft.DocumentDB/databaseAccounts/tables', parameters('cosmosAccountName'), parameters('cosmosTableName')), reference(resourceId('Microsoft.Web/sites', parameters('functionAppName')), '2022-03-01', 'Full').identity.principalId))]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/sites', parameters('functionAppName'))]",
+        "[resourceId('Microsoft.DocumentDB/databaseAccounts/tables', parameters('cosmosAccountName'), parameters('cosmosTableName'))]"
+      ],
+      "properties": {
+        "principalId": "[reference(resourceId('Microsoft.Web/sites', parameters('functionAppName')), '2022-03-01', 'Full').identity.principalId]",
+        "roleDefinitionId": "[format('{0}/tableRoleDefinitions/00000000-0000-0000-0000-000000000002', resourceId('Microsoft.DocumentDB/databaseAccounts', parameters('cosmosAccountName')))]",
+        "scope": "[resourceId('Microsoft.DocumentDB/databaseAccounts/tables', parameters('cosmosAccountName'), parameters('cosmosTableName'))]"
+      }
+    }
+  ],
+  "outputs": {
+    "frontendStorageAccountName": {
+      "type": "string",
+      "value": "[parameters('frontendStorageAccountName')]"
+    },
+    "frontendStaticWebsiteEndpoint": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Storage/storageAccounts', parameters('frontendStorageAccountName')), '2023-05-01').primaryEndpoints.web]"
+    },
+    "functionStorageAccountName": {
+      "type": "string",
+      "value": "[parameters('functionStorageAccountName')]"
+    },
+    "functionAppName": {
+      "type": "string",
+      "value": "[parameters('functionAppName')]"
+    },
+    "functionAppUrl": {
+      "type": "string",
+      "value": "[format('https://{0}.azurewebsites.net', parameters('functionAppName'))]"
+    },
+    "functionPrincipalId": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Web/sites', parameters('functionAppName')), '2022-03-01', 'Full').identity.principalId]"
+    },
+    "cosmosAccountName": {
+      "type": "string",
+      "value": "[parameters('cosmosAccountName')]"
+    },
+    "cosmosEndpoint": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.DocumentDB/databaseAccounts', parameters('cosmosAccountName')), '2023-04-15').documentEndpoint]"
+    },
+    "cosmosTableName": {
+      "type": "string",
+      "value": "[parameters('cosmosTableName')]"
+    }
+  }
+}
