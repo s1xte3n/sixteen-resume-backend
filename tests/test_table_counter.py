@@ -23,7 +23,11 @@ def test_table_counter_initializes_and_persists():
         counter = TableVisitorCounter(table)
 
         assert counter.increment() == 1
-        assert counter.increment() == 2
+
+        # A fresh adapter instance must observe the persisted state rather than
+        # resetting the counter in process memory.
+        restarted_counter = TableVisitorCounter(table)
+        assert restarted_counter.increment() == 2
 
         stored = table.get_entity(
             partition_key="VisitorCounter",
@@ -58,3 +62,36 @@ def test_table_counter_concurrent_increments_do_not_lose_updates():
     finally:
         service.delete_table(table_name=table_name)
         service.close()
+
+
+
+def test_table_counter_rejects_invalid_persisted_count():
+    from src.domain.errors import VisitorCounterDependencyError
+
+    class InvalidStateTable:
+        def get_entity(self, *, partition_key, row_key):
+            return {
+                "PartitionKey": partition_key,
+                "RowKey": row_key,
+                "Count": -1,
+                "etag": "ignored",
+            }
+
+    counter = TableVisitorCounter(InvalidStateTable(), retry_delay_seconds=0)
+
+    with pytest.raises(VisitorCounterDependencyError):
+        counter.increment()
+
+
+def test_table_counter_maps_dependency_timeout_to_domain_error():
+    from azure.core.exceptions import ServiceRequestError
+    from src.domain.errors import VisitorCounterTimeoutError
+
+    class TimeoutTable:
+        def get_entity(self, *, partition_key, row_key):
+            raise ServiceRequestError("timeout")
+
+    counter = TableVisitorCounter(TimeoutTable(), retry_delay_seconds=0)
+
+    with pytest.raises(VisitorCounterTimeoutError):
+        counter.increment()
