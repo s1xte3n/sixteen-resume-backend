@@ -1,5 +1,6 @@
 import json
 import uuid
+from urllib.parse import parse_qs, urlparse
 
 import azure.functions as func
 
@@ -7,12 +8,18 @@ from function_app import counter, visitors
 
 
 def _request(method="GET", url="http://localhost/api/visitors", headers=None, body=None):
+    parsed_url = urlparse(url)
+    params = {
+        key: values[-1]
+        for key, values in parse_qs(parsed_url.query).items()
+    }
+
     return func.HttpRequest(
         method=method,
         body=body or b"",
         url=url,
         headers=headers or {},
-        params={},
+        params=params,
         route_params={},
     )
 
@@ -48,9 +55,7 @@ def test_valid_client_request_id_is_preserved():
 
 def test_invalid_client_request_id_returns_400_without_increment():
     before = counter.count
-    response = visitors(
-        _request(headers={"X-Request-ID": "not-a-uuid"})
-    )
+    response = visitors(_request(headers={"X-Request-ID": "not-a-uuid"}))
     payload = _response_json(response)
 
     assert response.status_code == 400
@@ -88,9 +93,7 @@ def test_query_parameters_return_400_without_increment():
 
 def test_unsupported_content_type_returns_415_without_increment():
     before = counter.count
-    response = visitors(
-        _request(headers={"Content-Type": "text/plain"})
-    )
+    response = visitors(_request(headers={"Content-Type": "text/plain"}))
 
     assert response.status_code == 415
     assert _response_json(response)["error"]["code"] == "UNSUPPORTED_MEDIA_TYPE"
