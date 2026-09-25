@@ -6,11 +6,15 @@ import azure.functions as func
 
 from src.api.errors import ApiError
 from src.api.visitors import handle_visitors_request
-from src.domain.visitor_counter import InMemoryVisitorCounter
+from src.domain.errors import (
+    VisitorCounterDependencyError,
+    VisitorCounterTimeoutError,
+)
+from src.infrastructure.factory import build_visitor_counter
 
 
 app = func.FunctionApp(http_auth_level=func.AuthLevel.ANONYMOUS)
-counter = InMemoryVisitorCounter()
+counter = build_visitor_counter()
 
 
 @app.route(
@@ -32,6 +36,30 @@ def visitors(req: func.HttpRequest) -> func.HttpResponse:
         return _json_response(
             status_code=exc.status_code,
             body=exc.to_body(request_id),
+            request_id=request_id,
+        )
+    except VisitorCounterTimeoutError:
+        return _json_response(
+            status_code=504,
+            body={
+                "error": {
+                    "code": "DEPENDENCY_TIMEOUT",
+                    "message": "The visitor counter dependency timed out.",
+                    "requestId": request_id,
+                }
+            },
+            request_id=request_id,
+        )
+    except VisitorCounterDependencyError:
+        return _json_response(
+            status_code=503,
+            body={
+                "error": {
+                    "code": "DEPENDENCY_UNAVAILABLE",
+                    "message": "The visitor counter dependency is unavailable.",
+                    "requestId": request_id,
+                }
+            },
             request_id=request_id,
         )
     except Exception:
@@ -64,7 +92,11 @@ def _validated_request_id(req: func.HttpRequest) -> str:
     return str(parsed)
 
 
-def _json_response(status_code: int, body: dict[str, Any], request_id: str) -> func.HttpResponse:
+def _json_response(
+    status_code: int,
+    body: dict[str, Any],
+    request_id: str,
+) -> func.HttpResponse:
     return func.HttpResponse(
         body=json.dumps(body),
         status_code=status_code,

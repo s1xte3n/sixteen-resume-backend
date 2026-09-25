@@ -139,3 +139,34 @@ def test_concurrent_counter_operations_do_not_lose_increments():
 
     assert counts == list(range(before + 1, before + 33))
     assert counter.count == before + 32
+
+def test_dependency_unavailable_returns_503_without_increment(monkeypatch):
+    from src.domain.errors import VisitorCounterDependencyError
+
+    class FailingCounter:
+        def increment(self):
+            raise VisitorCounterDependencyError("dependency unavailable")
+
+    monkeypatch.setattr("function_app.counter", FailingCounter())
+
+    response = visitors(_request())
+    payload = _response_json(response)
+
+    assert response.status_code == 503
+    assert payload["error"]["code"] == "DEPENDENCY_UNAVAILABLE"
+
+
+def test_dependency_timeout_returns_504_without_increment(monkeypatch):
+    from src.domain.errors import VisitorCounterTimeoutError
+
+    class TimingOutCounter:
+        def increment(self):
+            raise VisitorCounterTimeoutError("dependency timeout")
+
+    monkeypatch.setattr("function_app.counter", TimingOutCounter())
+
+    response = visitors(_request())
+    payload = _response_json(response)
+
+    assert response.status_code == 504
+    assert payload["error"]["code"] == "DEPENDENCY_TIMEOUT"
