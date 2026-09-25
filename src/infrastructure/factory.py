@@ -28,15 +28,20 @@ def build_visitor_counter():
     table_name = os.getenv("AZURE_COSMOS_TABLE_NAME", _DEFAULT_TABLE_NAME)
     partition_key = os.getenv("COSMOS_PARTITION_KEY", _DEFAULT_PARTITION_KEY)
     row_key = os.getenv("COSMOS_ROW_KEY", _DEFAULT_ROW_KEY)
+    app_env = os.getenv("APP_ENV", "local").strip().lower()
 
-    if os.getenv("APP_ENV", "local").strip().lower() == "local":
+    if app_env == "local":
         connection_string = os.getenv("AZURE_TABLE_CONNECTION_STRING")
         if not connection_string:
             raise ValueError(
                 "AZURE_TABLE_CONNECTION_STRING is required for the local table backend."
             )
+
         service_client = TableServiceClient.from_connection_string(
             connection_string
+        )
+        table_client = service_client.create_table_if_not_exists(
+            table_name=table_name
         )
     else:
         endpoint = os.getenv("COSMOS_ENDPOINT")
@@ -44,13 +49,16 @@ def build_visitor_counter():
             raise ValueError(
                 "COSMOS_ENDPOINT is required for the Azure table backend."
             )
+
         service_client = TableServiceClient(
             endpoint=endpoint,
             credential=DefaultAzureCredential(),
             audience="https://cosmos.azure.com",
         )
 
-    table_client = service_client.create_table_if_not_exists(table_name=table_name)
+        # Production infrastructure owns table creation. The runtime identity
+        # only receives data-plane permissions needed to read/update entities.
+        table_client = service_client.get_table_client(table_name)
 
     return TableVisitorCounter(
         table_client=table_client,
