@@ -14,7 +14,7 @@ Local runtime target:
 
 ### Persistence boundary
 
-The application now has a persistence adapter for Azure Cosmos DB Table API.
+The application has a persistence adapter for Azure Cosmos DB Table API.
 
 - Local Functions development uses Azurite Table Storage through `AZURE_TABLE_CONNECTION_STRING=UseDevelopmentStorage=true`.
 - Azure runtime uses `DefaultAzureCredential` against the Cosmos DB Table endpoint.
@@ -51,15 +51,19 @@ The local table-backed counter persists in Azurite storage between Function rest
 
 ### Tests
 
-Run the unit/contract suite:
+Run deterministic unit and component tests:
 
 `pytest -q`
 
-Run the Azurite persistence integration test:
+Run the Azurite persistence integration tests:
 
 `RUN_AZURITE_TESTS=true pytest -q tests/test_table_counter.py`
 
-The test suite validates the executable HTTP contract, request validation, canonical errors, concurrent increments, and the table persistence adapter.
+With Azurite and the local Functions host running, execute the HTTP contract suite:
+
+`RUN_FUNCTION_HOST_TESTS=true pytest -q tests/test_http_contract.py`
+
+The HTTP contract suite validates the deployed local route through the actual Functions host, including successful increments, request-ID handling, query/body validation, unsupported methods, content-type validation, canonical error shapes, and the no-increment behavior of rejected requests.
 
 ### Azure authentication
 
