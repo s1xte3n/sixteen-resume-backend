@@ -63,7 +63,18 @@ With Azurite and the local Functions host running, execute the HTTP contract sui
 
 `RUN_FUNCTION_HOST_TESTS=true pytest -q tests/test_http_contract.py`
 
-The HTTP contract suite validates the deployed local route through the actual Functions host, including successful increments, request-ID handling, query/body validation, unsupported methods, content-type validation, canonical error shapes, and the no-increment behavior of rejected requests.
+The HTTP contract suite validates the actual local Functions host route, including successful increments, request-ID handling, query/body validation, unsupported methods, content-type validation, canonical error shapes, and the no-increment behavior of rejected requests.
+
+### CI
+
+`.github/workflows/backend-ci.yml` is the backend validation gate. It runs:
+
+1. deterministic Python tests;
+2. Azurite-backed persistence tests;
+3. Azure Functions Core Tools startup;
+4. executable HTTP contract tests against `http://127.0.0.1:7071`.
+
+The workflow does not deploy Azure resources. Deployment and infrastructure remain later Phase 7 work.
 
 ### Azure authentication
 
