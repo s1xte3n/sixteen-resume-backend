@@ -2,7 +2,7 @@ from threading import Lock
 
 
 class InMemoryVisitorCounter:
-    """Local-only counter used until the Cosmos DB repository is implemented."""
+    """Thread-safe in-memory counter used by deterministic local unit tests."""
 
     def __init__(self, initial_count: int = 0):
         if initial_count < 0:

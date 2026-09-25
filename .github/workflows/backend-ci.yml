@@ -1,0 +1,98 @@
+name: Backend CI
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+      - "feature/**"
+      - "fix/**"
+      - "chore/**"
+  pull_request:
+    branches:
+      - main
+      - develop
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Python tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install Python dependencies
+        run: python -m pip install -r requirements.txt
+
+      - name: Run deterministic unit tests
+        run: pytest -q tests/test_visitors.py
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install Azurite
+        run: npm install --global azurite
+
+      - name: Start Azurite
+        run: |
+          azurite --silent > /tmp/azurite.log 2>&1 &
+          for attempt in {1..30}; do
+            if curl --silent --fail http://127.0.0.1:10002/devstoreaccount1?comp=list > /dev/null; then
+              break
+            fi
+            sleep 1
+          done
+
+      - name: Run persistence integration tests
+        env:
+          RUN_AZURITE_TESTS: "true"
+        run: pytest -q tests/test_table_counter.py
+
+      - name: Install Azure Functions Core Tools
+        run: |
+          curl -sL https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > microsoft.gpg
+          sudo install -o root -g root -m 644 microsoft.gpg /etc/apt/trusted.gpg.d/microsoft.gpg
+          rm microsoft.gpg
+          echo "deb [arch=amd64] https://packages.microsoft.com/repos/microsoft-ubuntu-$(lsb_release -cs)-prod $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/azure-functions.list
+          sudo apt-get update
+          sudo apt-get install -y azure-functions-core-tools-4
+
+      - name: Prepare local Functions settings
+        run: cp local.settings.json.example local.settings.json
+
+      - name: Start Azure Functions host
+        run: |
+          func start --verbose > /tmp/functions.log 2>&1 &
+          for attempt in {1..60}; do
+            if curl --silent --fail http://127.0.0.1:7071/api/visitors > /tmp/visitors-response.json; then
+              break
+            fi
+            sleep 2
+          done
+
+      - name: Run executable HTTP contract tests
+        env:
+          RUN_FUNCTION_HOST_TESTS: "true"
+          FUNCTION_BASE_URL: "http://127.0.0.1:7071"
+        run: pytest -q tests/test_http_contract.py
+
+      - name: Upload local runtime logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-local-runtime-logs
+          path: |
+            /tmp/azurite.log
+            /tmp/functions.log
