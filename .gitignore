@@ -12,3 +12,10 @@ htmlcov/
 .vscode/
 .idea/
 .DS_Store
+
+# Local Azure emulators
+__blobstorage__/
+__queuestorage__/
+__tablestorage__/
+__azurite_db_*.json
+AzuriteConfig
