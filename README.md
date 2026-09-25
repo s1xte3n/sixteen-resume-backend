@@ -2,7 +2,7 @@
 
 Backend for the Azure Cloud Resume Challenge.
 
-## Phase 7.1 — Backend foundation
+## Phase 7.2 — Persistence-backed visitor counter
 
 The backend exposes the frozen visitor-counter contract:
 
