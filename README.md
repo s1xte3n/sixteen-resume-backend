@@ -24,6 +24,14 @@ The application has a persistence adapter for Azure Cosmos DB Table API.
 
 The local in-memory counter remains the default when `VISITOR_COUNTER_BACKEND` is not set, which keeps direct unit tests deterministic. The provided `local.settings.json.example` selects the Azurite-backed table implementation for `func start`.
 
+### Executable contract files
+
+The canonical Phase 7.1 contract is stored under `docs/api/`: `API-CONTRACT.md`, `API-ENDPOINTS.md`, `API-SCHEMAS.md`, `API-ERRORS.md`, `API-VARIABLES.md`, `API-EXAMPLES.md`, `API-CHANGELOG.md`, and `openapi.yaml`.
+
+### Environment progression
+
+Phase 7.1 establishes the local executable API at `http://localhost:7071`. Test/staging and production Azure Function environments are provisioned by later IaC/deployment phases; no staging or production credentials belong in this repository.
+
 ### Local setup
 
 1. Install Python 3.11 or later.
