@@ -14,6 +14,14 @@ The template provisions:
 - Function managed identity with Cosmos DB for Table native data-plane contributor access scoped to the counter table.
 - Production Function CORS restricted to the approved frontend HTTPS origin.
 
+## Cost and hosting lifecycle
+
+The approved MVP recurring Azure/cloud cost ceiling is **R100/month**. The previous **USD $40/month** wording is obsolete and must not be used for the current MVP baseline. **R100/month is the authoritative recurring ceiling**, with lower cost preferred where practical.
+
+The approved MVP ARM architecture uses **Azure Functions Linux Consumption** hosting (`Y1` / Dynamic). This is an intentional MVP architecture decision. Microsoft has announced that hosting Function Apps on Linux in the Consumption plan will retire on **30 September 2028**; Linux Consumption is no longer receiving new features or language versions, and Microsoft directs affected apps toward **Flex Consumption**. The MVP can therefore proceed with Linux Consumption as the current approved hosting model while treating migration to Flex Consumption as a lifecycle requirement before retirement.
+
+The retirement is a lifecycle constraint, not a Phase 7.3 blocker. The production cost gate remains **<= R100/month** for the complete deployed MVP.
+
 The template does **not** provision the public HTTPS/CDN delivery layer yet. ADR-006 deliberately leaves the exact Azure edge service/SKU as an implementation-time selection. Selecting one without validating availability, lifecycle, FreeDNS hostname compatibility, Storage origin compatibility, IaC support, and the R100/month ceiling would violate the project source of truth.
 
 ## Source-of-truth alignment
