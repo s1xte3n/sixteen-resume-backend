@@ -182,7 +182,8 @@ def test_cosmos_role_assignment_is_table_scoped() -> None:
     assert "tableRoleDefinitions/00000000-0000-0000-0000-000000000002" in assignment[
         "roleDefinitionId"
     ]
-    assert "/tables/" in assignment["scope"]
+    assert "Microsoft.DocumentDB/databaseAccounts/tables" in assignment["scope"]
+    assert "parameters('cosmosTableName')" in assignment["scope"]
 
 
 def test_template_contains_no_long_lived_ci_or_cosmos_credentials() -> None:
