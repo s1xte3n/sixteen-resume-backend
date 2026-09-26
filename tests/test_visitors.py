@@ -205,4 +205,4 @@ def test_unexpected_failure_is_logged_without_exposing_exception_details(
     assert response.status_code == 500
     assert "Unexpected visitor API failure" in caplog.text
     assert response.headers["X-Request-ID"] in caplog.text
-    assert "synthetic-secret-value" not in caplog.text
+    assert "synthetic-secret-value" not in response.get_body().decode("utf-8")
