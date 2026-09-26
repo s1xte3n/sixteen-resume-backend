@@ -16,9 +16,18 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: backend-cicd-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: "3.12"
+  NODE_VERSION: "22"
+  ARM_TEMPLATE: "infra/azure/azuredeploy.json"
+
 jobs:
-  test:
-    name: Python and infrastructure tests
+  validate:
+    name: Test and validate
     runs-on: ubuntu-latest
 
     steps:
@@ -99,3 +108,111 @@ jobs:
           path: |
             /tmp/azurite.log
             /tmp/functions.log
+            /tmp/visitors-response.json
+
+  deploy:
+    name: Deploy Azure infrastructure and Function App
+    needs: validate
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Log in to Azure with OIDC
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Verify Azure subscription context
+        run: az account show --output table
+
+      - name: Validate ARM template in Azure
+        run: |
+          az deployment group validate \\
+            --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \\
+            --template-file "${{ env.ARM_TEMPLATE }}" \\
+            --parameters \\
+              location="${{ vars.AZURE_LOCATION }}" \\
+              environmentName="production" \\
+              frontendStorageAccountName="${{ vars.FRONTEND_STORAGE_ACCOUNT_NAME }}" \\
+              functionStorageAccountName="${{ vars.FUNCTION_STORAGE_ACCOUNT_NAME }}" \\
+              functionPlanName="${{ vars.FUNCTION_PLAN_NAME }}" \\
+              functionAppName="${{ vars.FUNCTION_APP_NAME }}" \\
+              cosmosAccountName="${{ vars.COSMOS_ACCOUNT_NAME }}" \\
+              cosmosTableName="${{ vars.COSMOS_TABLE_NAME }}" \\
+              corsAllowedOrigin="${{ vars.CORS_ALLOWED_ORIGIN }}"
+
+      - name: Deploy approved ARM infrastructure
+        id: arm-deploy
+        run: |
+          az deployment group create \\
+            --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \\
+            --template-file "${{ env.ARM_TEMPLATE }}" \\
+            --parameters \\
+              location="${{ vars.AZURE_LOCATION }}" \\
+              environmentName="production" \\
+              frontendStorageAccountName="${{ vars.FRONTEND_STORAGE_ACCOUNT_NAME }}" \\
+              functionStorageAccountName="${{ vars.FUNCTION_STORAGE_ACCOUNT_NAME }}" \\
+              functionPlanName="${{ vars.FUNCTION_PLAN_NAME }}" \\
+              functionAppName="${{ vars.FUNCTION_APP_NAME }}" \\
+              cosmosAccountName="${{ vars.COSMOS_ACCOUNT_NAME }}" \\
+              cosmosTableName="${{ vars.COSMOS_TABLE_NAME }}" \\
+              corsAllowedOrigin="${{ vars.CORS_ALLOWED_ORIGIN }}" \\
+            --name "sixteen-resume-core-${{ github.run_number }}" \\
+            --output json > arm-deployment.json
+
+      - name: Verify ARM deployment succeeded
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          state = json.loads(Path("arm-deployment.json").read_text()).get("properties", {}).get("provisioningState")
+          if state != "Succeeded":
+              raise SystemExit(f"ARM deployment failed: {state!r}")
+          print(f"ARM provisioning state: {state}")
+          PY
+
+      - name: Package Azure Function application
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import zipfile
+          excluded = {".git", ".github", ".pytest_cache", "__pycache__", "tests"}
+          with zipfile.ZipFile("functionapp.zip", "w", zipfile.ZIP_DEFLATED) as archive:
+              for path in Path(".").rglob("*"):
+                  if path.is_file() and not any(part in excluded for part in path.parts) and path.name not in {"functionapp.zip", "local.settings.json"}:
+                      archive.write(path, path.as_posix())
+          PY
+
+      - name: Deploy Function application package
+        uses: Azure/functions-action@v1
+        with:
+          app-name: ${{ vars.FUNCTION_APP_NAME }}
+          package: ./functionapp.zip
+
+      - name: Record deployment evidence
+        if: always()
+        run: |
+          printf '%s\\n' \\
+            "commit=${{ github.sha }}" \\
+            "run=${{ github.run_id }}" \\
+            "resource_group=${{ vars.AZURE_RESOURCE_GROUP }}" \\
+            "function_app=${{ vars.FUNCTION_APP_NAME }}" \\
+            "arm_deployment=${{ steps.arm-deploy.outcome }}" > deployment-evidence.txt
+
+      - name: Upload deployment evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-azure-deployment-evidence-${{ github.run_id }}
+          path: |
+            arm-deployment.json
+            deployment-evidence.txt
