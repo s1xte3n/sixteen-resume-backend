@@ -107,11 +107,10 @@ az deployment group create \
 
 The backend CI workflow runs this infrastructure test before the Azurite and HTTP integration tests.
 
-### Environment progression
 
 Phase 7.1 establishes the local executable API at `http://localhost:7071`. Phase 7.2 establishes the persistence adapter and deterministic local persistence tests. Phase 7.3 establishes source-controlled Azure core infrastructure. Production deployment evidence remains pending until Azure validation/deployment, runtime RBAC verification, HTTPS/CDN selection, DNS/HTTPS validation, and cost evidence are complete.
 
-## Local setup
+## Local setup    
 
 1. Install Python 3.11 or later.
 2. Create and activate a virtual environment.
