@@ -2,7 +2,7 @@
 
 ## Phase 7 status
 
-**NOT COMPLETE — implementation complete; operational evidence pending.**
+**BLOCKED — implementation is present; live Azure deployment and runtime evidence cannot be independently verified from the current environment.**
 
 ## Implemented
 
@@ -20,15 +20,30 @@
 - Production deployment isolation through the `production` environment.
 - No Azure credentials committed to source.
 
-## Pending evidence
+## Live verification state
+
+The production workflow is present and defines the required deployment sequence, but source inspection is not proof that the sequence has succeeded against Azure.
+
+The following remain **BLOCKED** pending authenticated production evidence:
 
 - Production GitHub environment exists.
 - Required OIDC secrets are configured.
 - Required production variables are configured.
 - Azure federated credential exists.
-- Deployment identity has approved least-privilege permissions.
-- Controlled `main` run succeeds.
-- ARM and Function deployment evidence is retained.
-- Main branch protection / required CI checks are verified.
+- Deployment identity has approved permissions.
+- Controlled `main` deployment run succeeds.
+- ARM provisioning state is `Succeeded`.
+- Function package deployment succeeds.
+- Retained deployment artifacts are available.
+- Each provisioned Azure resource can be independently enumerated and verified.
+- Function application settings and CORS are confirmed effective.
+- Production logging/telemetry is confirmed.
+- Public HTTPS endpoint is reachable.
+- Visitor-counter API contract succeeds against production.
+- Cosmos persistence is verified before/after the approved synthetic calls.
+- Expected error behavior is verified.
+- Frontend displays the resulting persisted count.
 
-No pending item is being represented as passed.
+See `docs/ci-cd/PHASE-7-LIVE-AZURE-DEPLOYMENT-VERIFICATION.md` for the complete evidence matrix.
+
+No pending item is represented as passed.
