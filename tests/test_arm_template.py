@@ -31,6 +31,33 @@ def test_arm_template_is_valid_json_and_has_core_resources() -> None:
     assert "Microsoft.DocumentDB/databaseAccounts/tableRoleAssignments" in types
 
 
+def test_deployment_region_is_restricted_to_approved_east_us() -> None:
+    template = load_template()
+
+    location = template["parameters"]["location"]
+
+    assert location["defaultValue"] == "eastus"
+    assert location["allowedValues"] == ["eastus"]
+
+
+def test_linux_consumption_plan_is_explicitly_configured() -> None:
+    template = load_template()
+
+    plans = [
+        resource
+        for resource in template["resources"]
+        if resource["type"] == "Microsoft.Web/serverfarms"
+    ]
+
+    assert len(plans) == 1
+
+    plan = plans[0]
+
+    assert plan["sku"]["name"] == "Y1"
+    assert plan["sku"]["tier"] == "Dynamic"
+    assert plan["properties"]["reserved"] is True
+
+
 def test_frontend_storage_is_static_website_storage() -> None:
     template = load_template()
 
@@ -116,6 +143,28 @@ def test_function_cors_is_parameterized_and_not_wildcarded() -> None:
     assert "*" not in cors["allowedOrigins"]
 
 
+def test_function_depends_on_host_storage_and_cosmos_resources() -> None:
+    template = load_template()
+
+    apps = [
+        resource
+        for resource in template["resources"]
+        if resource["type"] == "Microsoft.Web/sites"
+    ]
+
+    assert len(apps) == 1
+
+    dependencies = set(apps[0]["dependsOn"])
+
+    assert "[resourceId('Microsoft.Web/serverfarms', parameters('functionPlanName'))]" in dependencies
+    assert "[resourceId('Microsoft.Storage/storageAccounts', parameters('functionStorageAccountName'))]" in dependencies
+    assert "[resourceId('Microsoft.DocumentDB/databaseAccounts', parameters('cosmosAccountName'))]" in dependencies
+    assert (
+        "[resourceId('Microsoft.DocumentDB/databaseAccounts/tables', parameters('cosmosAccountName'), parameters('cosmosTableName'))]"
+        in dependencies
+    )
+
+
 def test_cosmos_role_assignment_is_table_scoped() -> None:
     template = load_template()
 
@@ -133,7 +182,8 @@ def test_cosmos_role_assignment_is_table_scoped() -> None:
     assert "tableRoleDefinitions/00000000-0000-0000-0000-000000000002" in assignment[
         "roleDefinitionId"
     ]
-    assert "/tables/" in assignment["scope"]
+    assert "Microsoft.DocumentDB/databaseAccounts/tables" in assignment["scope"]
+    assert "parameters('cosmosTableName')" in assignment["scope"]
 
 
 def test_template_contains_no_long_lived_ci_or_cosmos_credentials() -> None:

@@ -1,4 +1,5 @@
 import json
+import logging
 import uuid
 from typing import Any
 
@@ -12,6 +13,8 @@ from src.domain.errors import (
 )
 from src.infrastructure.factory import build_visitor_counter
 
+
+logger = logging.getLogger(__name__)
 
 app = func.FunctionApp(http_auth_level=func.AuthLevel.ANONYMOUS)
 counter = build_visitor_counter()
@@ -33,12 +36,22 @@ def visitors(req: func.HttpRequest) -> func.HttpResponse:
             request_id=request_id,
         )
     except ApiError as exc:
+        logger.warning(
+            "Visitor API request rejected request_id=%s code=%s status_code=%s",
+            request_id,
+            exc.code,
+            exc.status_code,
+        )
         return _json_response(
             status_code=exc.status_code,
             body=exc.to_body(request_id),
             request_id=request_id,
         )
     except VisitorCounterTimeoutError:
+        logger.warning(
+            "Visitor counter dependency timed out request_id=%s",
+            request_id,
+        )
         return _json_response(
             status_code=504,
             body={
@@ -51,6 +64,10 @@ def visitors(req: func.HttpRequest) -> func.HttpResponse:
             request_id=request_id,
         )
     except VisitorCounterDependencyError:
+        logger.error(
+            "Visitor counter dependency unavailable request_id=%s",
+            request_id,
+        )
         return _json_response(
             status_code=503,
             body={
@@ -63,6 +80,10 @@ def visitors(req: func.HttpRequest) -> func.HttpResponse:
             request_id=request_id,
         )
     except Exception:
+        logger.exception(
+            "Unexpected visitor API failure request_id=%s",
+            request_id,
+        )
         return _json_response(
             status_code=500,
             body={
