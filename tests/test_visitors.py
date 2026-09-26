@@ -140,6 +140,7 @@ def test_concurrent_counter_operations_do_not_lose_increments():
     assert counts == list(range(before + 1, before + 33))
     assert counter.count == before + 32
 
+
 def test_dependency_unavailable_returns_503_without_increment(monkeypatch):
     from src.domain.errors import VisitorCounterDependencyError
 
@@ -170,3 +171,38 @@ def test_dependency_timeout_returns_504_without_increment(monkeypatch):
 
     assert response.status_code == 504
     assert payload["error"]["code"] == "DEPENDENCY_TIMEOUT"
+
+
+def test_dependency_unavailable_is_logged(monkeypatch, caplog):
+    from src.domain.errors import VisitorCounterDependencyError
+
+    class FailingCounter:
+        def increment(self):
+            raise VisitorCounterDependencyError("dependency unavailable")
+
+    monkeypatch.setattr("function_app.counter", FailingCounter())
+
+    with caplog.at_level("ERROR", logger="function_app"):
+        response = visitors(_request())
+
+    assert response.status_code == 503
+    assert "Visitor counter dependency unavailable" in caplog.text
+    assert response.headers["X-Request-ID"] in caplog.text
+
+
+def test_unexpected_failure_is_logged_without_exposing_exception_details(
+    monkeypatch, caplog
+):
+    class FailingCounter:
+        def increment(self):
+            raise RuntimeError("synthetic-secret-value")
+
+    monkeypatch.setattr("function_app.counter", FailingCounter())
+
+    with caplog.at_level("ERROR", logger="function_app"):
+        response = visitors(_request())
+
+    assert response.status_code == 500
+    assert "Unexpected visitor API failure" in caplog.text
+    assert response.headers["X-Request-ID"] in caplog.text
+    assert "synthetic-secret-value" not in caplog.text
