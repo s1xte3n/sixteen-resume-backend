@@ -18,7 +18,7 @@ permissions:
 
 jobs:
   test:
-    name: Python tests
+    name: Python and infrastructure tests
     runs-on: ubuntu-latest
 
     steps:
@@ -36,6 +36,9 @@ jobs:
 
       - name: Run deterministic unit tests
         run: pytest -q tests/test_visitors.py
+
+      - name: Validate committed ARM infrastructure
+        run: pytest -q tests/test_arm_template.py
 
       - name: Set up Node.js
         uses: actions/setup-node@v4

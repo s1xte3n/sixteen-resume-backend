@@ -28,11 +28,90 @@ The local in-memory counter remains the default when `VISITOR_COUNTER_BACKEND` i
 
 The canonical Phase 7.1 contract is stored under `docs/api/`: `API-CONTRACT.md`, `API-ENDPOINTS.md`, `API-SCHEMAS.md`, `API-ERRORS.md`, `API-VARIABLES.md`, `API-EXAMPLES.md`, `API-CHANGELOG.md`, and `openapi.yaml`.
 
+## Phase 7.3 — Azure IaC / Infrastructure Integration
+
+The committed ARM template is:
+
+`infra/azure/azuredeploy.json`
+
+It provisions the resolved Azure core infrastructure:
+
+- Azure Storage static website hosting for the frontend.
+- Azure Functions Linux Consumption hosting.
+- Function host storage.
+- Azure Cosmos DB for Table API in serverless capacity.
+- The single `VisitorCounter` table.
+- Function system-assigned managed identity.
+- Cosmos DB for Table native data-plane contributor access scoped to the counter table.
+- Production CORS restricted to the approved frontend HTTPS origin.
+
+### Cost and hosting lifecycle
+
+The approved MVP recurring Azure/cloud cost ceiling is **R100/month**. The previous **USD $40/month** wording is obsolete and must not be used for the current MVP baseline. **R100/month is the authoritative recurring ceiling**, with lower cost preferred where practical.
+
+The approved MVP ARM architecture uses **Azure Functions Linux Consumption** hosting (`Y1` / Dynamic). This is an intentional MVP architecture decision, not a statement that the hosting model is suitable beyond its supported lifecycle. Microsoft has announced that hosting Function Apps on Linux in the Consumption plan will retire on **30 September 2028**; Linux Consumption is no longer receiving new features or language versions, and Microsoft directs affected apps toward **Flex Consumption**. The MVP therefore records Linux Consumption as the currently approved implementation while retaining migration to Flex Consumption as a future lifecycle action before the retirement date.
+
+This retirement does not block the current Phase 7.3 IaC implementation, but it is a documented lifecycle constraint and must remain visible in future architecture, cost, and migration planning.
+
+The public HTTPS/CDN delivery resource is intentionally **not** included yet. ADR-006 leaves the exact edge service/SKU as an implementation-time selection that must first satisfy current availability/lifecycle, FreeDNS hostname compatibility, Storage origin compatibility, IaC support, and the R100/month recurring cost ceiling.
+
+### ARM validation
+
+Run from an authenticated Azure CLI context against the approved production resource group:
+
+```bash
+az deployment group validate \
+  --resource-group "<RESOURCE_GROUP>" \
+  --template-file infra/azure/azuredeploy.json \
+  --parameters \
+    frontendStorageAccountName="<FRONTEND_STORAGE_ACCOUNT>" \
+    functionStorageAccountName="<FUNCTION_STORAGE_ACCOUNT>" \
+    functionPlanName="sixteen-resume-functions" \
+    functionAppName="<FUNCTION_APP_NAME>" \
+    cosmosAccountName="<COSMOS_ACCOUNT_NAME>" \
+    corsAllowedOrigin="https://<APPROVED_PUBLIC_HOSTNAME>"
+```
+
+A real Azure deployment validation cannot be claimed from source inspection alone. It requires an authenticated Azure context and an existing resource group.
+
+### ARM deployment
+
+Do not deploy the template to production until the Phase 7.3 implementation gates are satisfied:
+
+```bash
+az deployment group create \
+  --resource-group "<RESOURCE_GROUP>" \
+  --template-file infra/azure/azuredeploy.json \
+  --parameters \
+    frontendStorageAccountName="<FRONTEND_STORAGE_ACCOUNT>" \
+    functionStorageAccountName="<FUNCTION_STORAGE_ACCOUNT>" \
+    functionPlanName="sixteen-resume-functions" \
+    functionAppName="<FUNCTION_APP_NAME>" \
+    cosmosAccountName="<COSMOS_ACCOUNT_NAME>" \
+    corsAllowedOrigin="https://<APPROVED_PUBLIC_HOSTNAME>" \
+  --name "sixteen-resume-core"
+```
+
+### Infrastructure tests
+
+`tests/test_arm_template.py` verifies the committed ARM artifact structurally, including:
+
+- required core Azure resource types;
+- Storage static website configuration;
+- Cosmos Table + serverless configuration;
+- disabled Cosmos key authentication;
+- Python Function configuration;
+- production CORS parameterization;
+- table-scoped Cosmos data-plane RBAC;
+- absence of long-lived CI/Cosmos credential markers.
+
+The backend CI workflow runs this infrastructure test before the Azurite and HTTP integration tests.
+
 ### Environment progression
 
-Phase 7.1 establishes the local executable API at `http://localhost:7071`. Test/staging and production Azure Function environments are provisioned by later IaC/deployment phases; no staging or production credentials belong in this repository.
+Phase 7.1 establishes the local executable API at `http://localhost:7071`. Phase 7.2 establishes the persistence adapter and deterministic local persistence tests. Phase 7.3 establishes source-controlled Azure core infrastructure. Production deployment evidence remains pending until Azure validation/deployment, runtime RBAC verification, HTTPS/CDN selection, DNS/HTTPS validation, and cost evidence are complete.
 
-### Local setup
+## Local setup
 
 1. Install Python 3.11 or later.
 2. Create and activate a virtual environment.
@@ -57,11 +136,15 @@ Phase 7.1 establishes the local executable API at `http://localhost:7071`. Test/
 
 The local table-backed counter persists in Azurite storage between Function restarts unless the Azurite data directory is removed.
 
-### Tests
+## Tests
 
-Run deterministic unit and component tests:
+Run the complete local backend test suite:
 
 `pytest -q`
+
+Run the committed ARM structure tests:
+
+`pytest -q tests/test_arm_template.py`
 
 Run the Azurite persistence integration tests:
 
@@ -73,19 +156,24 @@ With Azurite and the local Functions host running, execute the HTTP contract sui
 
 The HTTP contract suite validates the actual local Functions host route, including successful increments, request-ID handling, query/body validation, unsupported methods, content-type validation, canonical error shapes, and the no-increment behavior of rejected requests.
 
-### CI
+## CI
 
 `.github/workflows/backend-ci.yml` is the backend validation gate. It runs:
 
 1. deterministic Python tests;
-2. Azurite-backed persistence tests;
-3. Azure Functions Core Tools startup;
-4. executable HTTP contract tests against `http://127.0.0.1:7071`.
+2. committed ARM infrastructure tests;
+3. Azurite-backed persistence tests;
+4. Azure Functions Core Tools startup;
+5. executable HTTP contract tests against `http://127.0.0.1:7071`.
 
-The workflow does not deploy Azure resources. Deployment and infrastructure remain later Phase 7 work.
+The workflow does not yet perform a production Azure deployment. That belongs to the later CI/CD delivery gate after the required OIDC identity, RBAC scopes, Azure environment, HTTPS/CDN decision, and release conditions are verified.
 
-### Azure authentication
+## Azure authentication
 
-Production does not use Cosmos connection strings or account keys. The Function uses its managed identity and Azure Cosmos DB for Table native data-plane RBAC. The Azure SDK's `DefaultAzureCredential` is used by the table adapter for the Azure runtime.
+Production application access does not use Cosmos connection strings or account keys. The Function uses its managed identity and Azure Cosmos DB for Table native data-plane RBAC. The Azure SDK's `DefaultAzureCredential` is used by the table adapter for the Azure runtime.
 
-No Azure credentials, connection strings, or production secrets belong in source control.
+The classic Consumption hosting model requires Azure Functions host storage configuration. The ARM template derives the platform storage connection string at deployment time rather than committing a credential to source; it is not emitted as an ARM output.
+
+GitHub-to-Azure OIDC for backend deployment is a separate delivery/identity configuration and is not hardcoded in this repository.
+
+No Azure credentials, Cosmos credentials, or CI secrets belong in source control.
