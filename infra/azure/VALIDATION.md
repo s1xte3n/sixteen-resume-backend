@@ -168,3 +168,27 @@ Phase 2 is production-ready only after authenticated Azure validation, deploymen
 Backend CI run 51 for the Phase 2 branch completed successfully on 2026-10-06. The run passed deterministic unit tests, Flex ARM structural tests, Azurite persistence/concurrency tests, local Functions host startup, and executable HTTP contract tests.
 
 Authenticated Azure validation was not executed by the PR workflow because production deployment is intentionally gated to a push to main. Therefore Azure provisioning, Flex subscription capacity, OIDC production execution, runtime RBAC, package activation, and cost validation remain unproven.
+
+
+## Phase 3 — Authenticated Azure Deployment Verification
+
+**Gate status: BLOCKED.**
+
+Executed evidence on 2026-10-06 against backend main commit 53035b2d1d81d431a29180738e3a9c77f2081e23:
+
+- GitHub Actions run: 37520785334 (Backend CI, run 54).
+- Validation job passed.
+- Deployment job reached azure/login@v3 and requested GitHub OIDC authentication.
+- Azure rejected the token with AADSTS70025: the deployment application had no configured federated identity credentials.
+- OIDC token evidence observed by Azure login: issuer https://token.actions.githubusercontent.com; audience api://AzureADTokenExchange; production environment subject emitted by GitHub; workflow reference .github/workflows/backend-ci.yml@refs/heads/main.
+- ARM validation did not execute because OIDC authentication failed first.
+- ARM deployment did not execute.
+- Flex regional availability was not proven by this production run.
+- Subscription-specific Flex capacity was not proven.
+- Deployed Function configuration, runtime storage, deployment storage, RBAC, Cosmos authorization, package activation, runtime startup, API regression, persistence, concurrency, CORS, cost, and production observability were not proven.
+
+No manual Azure repair, client secret, publish profile, or alternate authentication mechanism was used.
+
+The failure is a release blocker and must be resolved by provisioning the approved federated identity credential for the production GitHub environment, followed by a fresh authenticated workflow run. The exact issuer, subject, audience, tenant, subscription, identity and RBAC must then be re-verified from live execution evidence.
+
+The previously recorded Phase 2 CI evidence remains valid for source/local validation only. It must not be interpreted as production deployment evidence.
