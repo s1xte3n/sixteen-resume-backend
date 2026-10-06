@@ -93,7 +93,7 @@ The deployment outputs include the frontend Storage endpoint, Function URL, Cosm
 - The Function uses `DefaultAzureCredential` for Cosmos DB.
 - Cosmos local/key authentication is disabled.
 - The Cosmos built-in Table Data Contributor role is used for the Function identity and scoped to the single counter table.
-- The Functions platform host-storage connection is generated at deployment time from Azure Storage keys because this project remains on the approved classic Consumption plan. The value is not hardcoded in source and is not exported as an output.
+- The Functions platform host-storage connection text above describes the historical Consumption/Y1 implementation and is superseded. Flex Consumption requires the Phase 1 ARM implementation to use its identity-based storage/deployment configuration; the existing connection-string approach must not be treated as current.
 - The frontend deployment identity is not created by this template; it is managed by the frontend repository's OIDC setup.
 - The backend GitHub OIDC identity is a separate delivery/identity concern and must be provisioned with the backend CI/CD work.
 
