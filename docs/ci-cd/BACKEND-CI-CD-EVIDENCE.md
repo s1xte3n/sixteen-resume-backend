@@ -1,49 +1,64 @@
 # Backend CI/CD Evidence
 
-## Phase 7 status
+## Phase 2 status
 
-**BLOCKED — implementation is present; live Azure deployment and runtime evidence cannot be independently verified from the current environment.**
+**BLOCKED — Flex implementation is present; live Azure deployment and runtime evidence cannot be independently verified from source inspection.**
 
 ## Implemented
 
-- Backend dependency installation.
+- Python 3.12 validation.
 - Python unit tests.
-- ARM structural validation.
-- Azurite persistence tests.
+- ARM structural validation for Flex.
+- Azurite persistence and concurrency tests.
 - Local Function HTTP contract tests.
 - Azure OIDC authentication.
+- Flex regional availability validation.
+- Python 3.12 Flex runtime availability validation.
 - Azure ARM validation.
 - Azure ARM deployment.
-- Function package creation.
-- Function App deployment.
+- Deployed FC1/Linux/functionAppConfig verification.
+- Identity-based runtime storage verification.
+- Private deployment-container verification.
+- Ready-to-run Function package creation.
+- Flex-compatible package deployment through Azure/functions-action.
+- Post-deployment Function App state verification.
 - Deployment evidence artifact upload.
-- Production deployment isolation through the `production` environment.
+- Production deployment isolation through the production environment.
 - No Azure credentials committed to source.
 
 ## Live verification state
 
-The production workflow is present and defines the required deployment sequence, but source inspection is not proof that the sequence has succeeded against Azure.
+The production workflow defines the required deployment sequence, but source inspection is not proof that the sequence has succeeded against Azure.
 
 The following remain **BLOCKED** pending authenticated production evidence:
 
 - Production GitHub environment exists.
-- Required OIDC secrets are configured.
+- Required OIDC identifiers are configured.
 - Required production variables are configured.
-- Azure federated credential exists.
+- Azure federated credential exists and matches the GitHub OIDC subject/audience.
 - Deployment identity has approved permissions.
-- Controlled `main` deployment run succeeds.
-- ARM provisioning state is `Succeeded`.
+- East US Flex capacity is available for the actual subscription.
+- Controlled main deployment run succeeds.
+- ARM provisioning state is Succeeded.
+- Deployed plan is FC1 / FlexConsumption.
+- Function App is Linux with system-assigned identity.
+- Function runtime is Python 3.12 / Functions v4.
+- Runtime storage uses identity-based configuration.
+- Deployment storage is private and identity-authenticated.
 - Function package deployment succeeds.
-- Retained deployment artifacts are available.
-- Each provisioned Azure resource can be independently enumerated and verified.
-- Function application settings and CORS are confirmed effective.
-- Production logging/telemetry is confirmed.
-- Public HTTPS endpoint is reachable.
-- Visitor-counter API contract succeeds against production.
-- Cosmos persistence is verified before/after the approved synthetic calls.
-- Expected error behavior is verified.
-- Frontend displays the resulting persisted count.
+- Function App reaches Running state.
+- Runtime identity can access Cosmos Table API.
+- Production recurring cost is <= R100/month.
+- Public HTTPS/CDN and hostname acceptance is complete.
 
-See `docs/ci-cd/PHASE-7-LIVE-AZURE-DEPLOYMENT-VERIFICATION.md` for the complete evidence matrix.
+## Evidence rule
 
-No pending item is represented as passed.
+A workflow definition is not deployment evidence.
+
+A test is not passed merely because the command exits successfully.
+
+Azure acceptance requires authenticated evidence for:
+
+Requirement -> IaC -> Azure resource -> identity/RBAC -> deployment -> runtime -> API -> cost -> release.
+
+See infra/azure/VALIDATION.md for the complete Flex validation boundary.
