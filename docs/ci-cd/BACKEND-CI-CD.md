@@ -127,3 +127,11 @@ Y1/Linux Consumption is historical/superseded and is not a deployment option.
 The API remains GET /api/visitors and hosting migration does not authorize contract changes.
 
 The approved recurring Azure/cloud cost ceiling remains R100/month, with R0/month preferred.
+
+## Phase 4 continuation — 2026-10-07
+
+The ARM template validation defects identified during Phase 3 have been corrected and independently validated against Azure. The deployment workflow remains gated on a successful production GitHub Actions OIDC execution and least-privilege deployment authorization.
+
+**Current production gate: BLOCKED.**
+
+No API, hosting baseline, deployment model, or credential model has been changed. Y1/Linux Consumption, client secrets, publish profiles, and broad permission escalation remain prohibited.
