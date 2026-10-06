@@ -229,6 +229,7 @@ def test_function_storage_rbac_is_least_privilege_for_flex_runtime_and_deploymen
     for assignment in assignments:
         assert assignment["properties"]["principalType"] == "ServicePrincipal"
         assert "reference(resourceId('Microsoft.Web/sites', parameters('functionAppName'))" in assignment["properties"]["principalId"]
+        assert "reference(resourceId('Microsoft.Web/sites', parameters('functionAppName'))" not in assignment["name"]
 
 
 def test_cosmos_role_assignment_is_table_scoped() -> None:
@@ -246,6 +247,7 @@ def test_cosmos_role_assignment_is_table_scoped() -> None:
     ]
     assert "Microsoft.DocumentDB/databaseAccounts/tables" in assignment["scope"]
     assert "parameters('cosmosTableName')" in assignment["scope"]
+    assert "reference(resourceId('Microsoft.Web/sites', parameters('functionAppName'))" not in assignments[0]["name"]
 
 
 def test_template_contains_no_legacy_consumption_or_long_lived_credentials() -> None:

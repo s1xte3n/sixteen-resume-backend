@@ -1,7 +1,7 @@
 # Phase 2 — Azure Functions Flex Consumption IaC Validation
 
 ## Status
-**Implementation complete; authenticated Azure validation and production deployment evidence pending.**
+**Implementation complete; authenticated Azure validation currently BLOCKED by an ARM role-assignment naming defect; correction prepared on the implementation branch.**
 
 Y1/Linux Consumption is historical evidence only. No Y1 quota increase is required or authorized.
 
@@ -173,6 +173,20 @@ Authenticated Azure validation was not executed by the PR workflow because produ
 ## Phase 3 — Authenticated Azure Deployment Verification
 
 **Gate status: BLOCKED.**
+
+### 2026-10-07 validation blocker and correction
+
+Azure `az deployment group validate` reached template evaluation and rejected the role-assignment resource names because they used `reference()` to obtain the Function App managed-identity principal ID inside the resource `name` expression. ARM does not permit `reference()` at that location.
+
+The correction is intentionally limited to resource-name determinism:
+
+- Storage role-assignment names use `guid(resourceId(...), parameters('functionAppName'), roleDefinitionIdVariable)`.
+- The Cosmos Table role-assignment name uses `guid(resourceId(...table...), parameters('functionAppName'), stableRoleKey)`.
+- `reference(...).identity.principalId` remains in the `properties.principalId` fields, where the Function App identity is consumed.
+- No role scope, role definition, Function App identity model, deployment storage model, or API contract is changed.
+
+The workflow must be revalidated against Azure after this correction. No production deployment evidence may be marked PASS from source inspection alone.
+
 
 Executed evidence on 2026-10-06 against backend main commit 53035b2d1d81d431a29180738e3a9c77f2081e23:
 
