@@ -91,3 +91,9 @@ Validation evidence included:
 Backend Tests run 51 also completed successfully.
 
 This CI result does not prove authenticated Azure provisioning, subscription-specific Flex capacity, production RBAC, production package deployment, production runtime behavior, or production cost compliance.
+
+### 2026-10-07 ARM validation correction — deployment Blob service resource ID
+
+Azure validation advanced past the role-assignment naming defect but then failed because the deployment Blob service dependsOn used resourceId('Microsoft.Storage/storageAccounts/blobServices', accountName) without the required default blob-service resource name. The correction changes this dependency to resourceId('Microsoft.Storage/storageAccounts/blobServices', accountName, 'default').
+
+This is a template-reference correction only. It does not change the deployment Storage account, private container, managed-identity authentication, RBAC scope, Function App configuration, or API contract. Production remains BLOCKED until the corrected template passes Azure validation and subsequent deployment evidence is observed.
