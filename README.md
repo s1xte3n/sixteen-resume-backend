@@ -45,7 +45,7 @@ The committed ARM template is:
 It currently provisions the resolved Azure core infrastructure:
 
 - Azure Storage static website hosting for the frontend.
-- Azure Functions Linux Consumption hosting.
+- Azure Functions Linux Consumption hosting (historical/superseded).
 - Function host storage.
 - Azure Cosmos DB for Table API in serverless capacity.
 - The single `VisitorCounter` table.
@@ -57,9 +57,9 @@ It currently provisions the resolved Azure core infrastructure:
 
 The approved MVP recurring Azure/cloud cost ceiling is **R100/month**. The previous **USD $40/month** wording is obsolete and must not be used for the current MVP baseline. **R100/month is the authoritative recurring ceiling**, with lower cost preferred where practical.
 
-The approved MVP ARM architecture uses **Azure Functions Linux Consumption** hosting (`Y1` / Dynamic). This is an intentional MVP architecture decision, not a statement that the hosting model is suitable beyond its supported lifecycle. Microsoft has announced that hosting Function Apps on Linux in the Consumption plan will retire on **30 September 2028**; Linux Consumption is no longer receiving new features or language versions, and Microsoft directs affected apps toward **Flex Consumption**. The MVP therefore records Linux Consumption as the currently approved implementation while retaining migration to Flex Consumption as a future lifecycle action before the retirement date.
+The historical MVP ARM architecture used **Azure Functions Linux Consumption** (`Y1` / Dynamic). This is superseded by the current Flex Consumption decision. The previous Y1 deployment failed because the subscription had Y1 VM quota = 0 and the attempted increase to 1 was unsuccessful. The historical lifecycle/retirement rationale is retained only as decision evidence; it is not the current hosting baseline.
 
-This retirement does not block the current Phase 7.3 IaC implementation, but it is a documented lifecycle constraint and must remain visible in future architecture, cost, and migration planning.
+The current deployment baseline is Azure Functions Flex Consumption (FC1), Linux, Functions v4, Python 3.12, scale-to-zero, and zero always-ready instances for MVP. The Flex ARM implementation is a Phase 1 follow-up.
 
 The public HTTPS/CDN delivery resource is intentionally **not** included yet. ADR-006 leaves the exact edge service/SKU as an implementation-time selection that must first satisfy current availability/lifecycle, FreeDNS hostname compatibility, Storage origin compatibility, IaC support, and the R100/month recurring cost ceiling.
 
