@@ -206,3 +206,9 @@ No manual Azure repair, client secret, publish profile, or alternate authenticat
 The failure is a release blocker and must be resolved by provisioning the approved federated identity credential for the production GitHub environment, followed by a fresh authenticated workflow run. The exact issuer, subject, audience, tenant, subscription, identity and RBAC must then be re-verified from live execution evidence.
 
 The previously recorded Phase 2 CI evidence remains valid for source/local validation only. It must not be interpreted as production deployment evidence.
+
+### 2026-10-07 ARM validation correction — deployment Blob service resource ID
+
+Azure validation advanced past the role-assignment naming defect but then failed because the deployment Blob service dependsOn used resourceId('Microsoft.Storage/storageAccounts/blobServices', accountName) without the required default blob-service resource name. The correction changes this dependency to resourceId('Microsoft.Storage/storageAccounts/blobServices', accountName, 'default').
+
+This is a template-reference correction only. It does not change the deployment Storage account, private container, managed-identity authentication, RBAC scope, Function App configuration, or API contract. Production remains BLOCKED until the corrected template passes Azure validation and subsequent deployment evidence is observed.
