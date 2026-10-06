@@ -32,7 +32,7 @@ The canonical Phase 7.1 contract is stored under `docs/api/`: `API-CONTRACT.md`,
 
 The previously approved Linux Consumption/Y1 hosting model is **superseded**. The current approved model is **Azure Functions Flex Consumption (FC1), Linux, Functions runtime v4, Python 3.12, serverless scale-to-zero, and zero always-ready instances for the MVP**.
 
-The previous Y1 deployment failed because the subscription had Y1 VM quota = 0; the attempted increase to 1 was unsuccessful. No further Y1 quota request is authorized. The existing ARM template is therefore historical/superseded and must not be deployed. Phase 1 must replace the hosting resource/configuration with the Flex Consumption model.
+The previous Y1 deployment failed because the subscription had Y1 VM quota = 0; the attempted increase to 1 was unsuccessful. No further Y1 quota request is authorized. Y1 is historical/superseded only and is not part of the current deployment path.
 
 ## Phase 7.3 — Azure IaC / Infrastructure Integration
 
@@ -40,7 +40,7 @@ The committed ARM template is:
 
 `infra/azure/azuredeploy.json`
 
-**Phase 0 status: superseded implementation.** It currently encodes the historical Linux Consumption/Y1 model and is not the current deployment baseline. The template remains temporarily for traceability and must be replaced/updated during Phase 1.
+**Phase 2 status: Flex infrastructure implementation complete; authenticated Azure deployment evidence pending.** It currently encodes the historical Linux Consumption/Y1 model and is not the current deployment baseline. The template remains temporarily for traceability and must be replaced/updated during Phase 1.
 
 It currently provisions the resolved Azure core infrastructure:
 
@@ -57,9 +57,9 @@ It currently provisions the resolved Azure core infrastructure:
 
 The approved MVP recurring Azure/cloud cost ceiling is **R100/month**. The previous **USD $40/month** wording is obsolete and must not be used for the current MVP baseline. **R100/month is the authoritative recurring ceiling**, with lower cost preferred where practical.
 
-The historical MVP ARM architecture used **Azure Functions Linux Consumption** (`Y1` / Dynamic). This is superseded by the current Flex Consumption decision. The previous Y1 deployment failed because the subscription had Y1 VM quota = 0 and the attempted increase to 1 was unsuccessful. The historical lifecycle/retirement rationale is retained only as decision evidence; it is not the current hosting baseline.
+The historical MVP ARM architecture used Azure Functions Linux Consumption (Y1/Dynamic). This remains decision history only. The current deployment baseline is Flex Consumption FC1.
 
-The current deployment baseline is Azure Functions Flex Consumption (FC1), Linux, Functions v4, Python 3.12, scale-to-zero, and zero always-ready instances for MVP. The Flex ARM implementation is a Phase 1 follow-up.
+The current deployment baseline is Azure Functions Flex Consumption (FC1), Linux, Functions v4, Python 3.12, serverless scale-to-zero, and zero always-ready instances for MVP. The ARM template and backend CI workflow implement this baseline.
 
 The public HTTPS/CDN delivery resource is intentionally **not** included yet. ADR-006 leaves the exact edge service/SKU as an implementation-time selection that must first satisfy current availability/lifecycle, FreeDNS hostname compatibility, Storage origin compatibility, IaC support, and the R100/month recurring cost ceiling.
 
@@ -174,20 +174,29 @@ The HTTP contract suite validates the actual local Functions host route, includi
 4. Azure Functions Core Tools startup;
 5. executable HTTP contract tests against `http://127.0.0.1:7071`.
 
-The workflow does not yet perform a production Azure deployment. That belongs to the later CI/CD delivery gate after the required OIDC identity, RBAC scopes, Azure environment, HTTPS/CDN decision, and release conditions are verified.
+The workflow contains the production Azure deployment path and its Flex validation gates; live execution evidence remains environment-dependent. That belongs to the later CI/CD delivery gate after the required OIDC identity, RBAC scopes, Azure environment, HTTPS/CDN decision, and release conditions are verified.
 
 ## Azure authentication
 
 Production application access does not use Cosmos connection strings or account keys. The Function uses its managed identity and Azure Cosmos DB for Table native data-plane RBAC. The Azure SDK's `DefaultAzureCredential` is used by the table adapter for the Azure runtime.
 
-The historical Consumption hosting model required Azure Files/content-share settings. Those settings are not the current Flex Consumption baseline and must be removed/reworked during the Phase 1 ARM update. The ARM template derives the platform storage connection string at deployment time rather than committing a credential to source; it is not emitted as an ARM output.
+Flex does not use the historical Azure Files/content-share settings. Runtime host storage is configured with AzureWebJobsStorage__accountName and managed identity. Deployment storage is a private Blob container configured through functionAppConfig and accessed with the Function App system-assigned identity.
 
 GitHub-to-Azure OIDC for backend deployment is a separate delivery/identity configuration and is not hardcoded in this repository.
 
 No Azure credentials, Cosmos credentials, or CI secrets belong in source control.
 
 
-## Phase 1 — Flex Consumption requirements baseline
+## Phase 2 — Flex Consumption implementation baseline
+
 The current hosting model is Azure Functions Flex Consumption FC1 on Linux, Functions runtime v4, Python 3.12, serverless scale-to-zero and zero always-ready instances for MVP.
-The existing infra/azure/azuredeploy.json is a historical/superseded Y1 implementation and must not be deployed. No Y1 quota increase is authorized.
-Phase 2 must replace the Y1 resource model with Flex functionAppConfig, identity-based deployment storage, Flex runtime storage configuration and Flex-compatible package deployment. The API contract remains GET /api/visitors.
+
+The ARM template uses functionAppConfig for deployment storage, runtime and scale configuration. Runtime storage uses identity-based AzureWebJobsStorage__accountName. Deployment storage is a private blob container accessed through the Function App system-assigned managed identity.
+
+Legacy WEBSITE_CONTENTAZUREFILECONNECTIONSTRING, WEBSITE_CONTENTSHARE and WEBSITE_RUN_FROM_PACKAGE settings are not used.
+
+The backend CI workflow validates Flex availability and Python 3.12 support, validates and deploys ARM, builds a ready-to-run package, deploys it through the supported Flex package-deployment path, and verifies the resulting Function App state.
+
+The API contract remains GET /api/visitors. No API redesign was introduced by the hosting migration.
+
+Live Azure/OIDC/RBAC/cost/runtime evidence remains required before production acceptance.
