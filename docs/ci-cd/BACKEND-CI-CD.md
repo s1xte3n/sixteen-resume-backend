@@ -2,7 +2,7 @@
 
 ## Status
 
-**Flex Consumption deployment workflow implemented; current production gate is blocked on ARM template validation and authenticated Azure deployment evidence.**
+**Flex Consumption deployment workflow implemented; current production gate is BLOCKED on production GitHub environment configuration and authenticated Azure deployment evidence.**
 
 ## Pipeline
 
@@ -32,21 +32,27 @@ AZURE_SUBSCRIPTION_ID
 
 These are OIDC identifiers. No client secret, publish profile, storage key, SAS token, or Azure connection string is used.
 
-### Variables
+### Required production variables
 
-AZURE_RESOURCE_GROUP  
-AZURE_LOCATION  
-FRONTEND_STORAGE_ACCOUNT_NAME  
-FUNCTION_STORAGE_ACCOUNT_NAME  
-DEPLOYMENT_STORAGE_ACCOUNT_NAME  
-DEPLOYMENT_STORAGE_CONTAINER_NAME  
-FUNCTION_PLAN_NAME  
-FUNCTION_APP_NAME  
-COSMOS_ACCOUNT_NAME  
-COSMOS_TABLE_NAME  
-CORS_ALLOWED_ORIGIN
+The backend deployment workflow requires all of the following to be configured in the **production GitHub environment**:
 
-Configure these as production environment variables. Do not commit environment-specific secret values.
+| Variable | Approved value |
+|---|---|
+| AZURE_RESOURCE_GROUP | rg-sixteen-resume-prod |
+| AZURE_LOCATION | eastus |
+| FRONTEND_STORAGE_ACCOUNT_NAME | st16resumeweb |
+| FUNCTION_STORAGE_ACCOUNT_NAME | st16resumefunc |
+| DEPLOYMENT_STORAGE_ACCOUNT_NAME | st16resumedeploy |
+| DEPLOYMENT_STORAGE_CONTAINER_NAME | function-deployments |
+| FUNCTION_PLAN_NAME | sixteen-resume-functions |
+| FUNCTION_APP_NAME | func-sixteen-resume |
+| COSMOS_ACCOUNT_NAME | cosmos-sixteen-resume |
+| COSMOS_TABLE_NAME | VisitorCounter |
+| CORS_ALLOWED_ORIGIN | https://sixteen-resume.mooo.com |
+
+These values must not be empty. In particular, passing an empty `DEPLOYMENT_STORAGE_ACCOUNT_NAME` overrides the ARM parameter's required minimum length and causes `az deployment group validate` to fail before resource validation.
+
+Do not commit environment-specific values to source control. Do not put the OIDC identifiers in source control.
 
 ## Flex deployment storage
 
@@ -93,11 +99,20 @@ The evidence records the commit, workflow run, resource group, Function App, hos
 
 ## Current production blocker
 
-The production deployment workflow reached Azure after OIDC federation was corrected, but Azure ARM validation currently fails because the ARM template used `reference()` inside role-assignment resource names. ARM does not permit `reference()` at that location.
+The ARM template defects identified during Phase 3 have been corrected.
 
-The corrective change makes every role-assignment resource name deterministic from resource identity and stable deployment inputs, while retaining `reference()` only in the role-assignment `principalId` property, where the Function App system-assigned identity is required. The Cosmos Table role-assignment name follows the same deterministic pattern.
+The current main template was successfully validated directly against Azure using the approved production resource group and non-empty deployment-storage parameters. The validation returned `provisioningState: Succeeded`.
 
-The workflow already passes `DEPLOYMENT_STORAGE_ACCOUNT_NAME` and `DEPLOYMENT_STORAGE_CONTAINER_NAME`; empty deployment-storage values must not be used for production validation.
+The remaining blocker is the production GitHub environment/OIDC execution path:
+
+1. The Entra federated credential exists with the approved GitHub issuer.
+2. The audience is `api://AzureADTokenExchange`.
+3. The production repository/environment subject is configured.
+4. GitHub Actions reaches Azure OIDC authentication.
+5. Azure login still returns `No subscriptions found`, so the deployment identity has not yet demonstrated access to the approved subscription.
+6. A separate manual ARM validation attempt failed because `deploymentStorageAccountName=""` was supplied. The ARM template correctly rejects that empty value because the parameter requires at least three characters. This is an invocation/environment-configuration error, not an ARM template defect.
+
+The workflow must be run only with the approved production variables above. Do not use empty deployment-storage values.
 
 ## Remaining verification
 
@@ -130,8 +145,8 @@ The approved recurring Azure/cloud cost ceiling remains R100/month, with R0/mont
 
 ## Phase 4 continuation — 2026-10-07
 
-The ARM template validation defects identified during Phase 3 have been corrected and independently validated against Azure. The deployment workflow remains gated on a successful production GitHub Actions OIDC execution and least-privilege deployment authorization.
-
 **Current production gate: BLOCKED.**
+
+ARM structural defects are resolved and direct Azure deployment-group validation has passed. Production release cannot proceed until the GitHub production environment has the approved non-empty deployment variables and the OIDC deployment identity successfully resolves the approved Azure subscription with the required least-privilege permissions.
 
 No API, hosting baseline, deployment model, or credential model has been changed. Y1/Linux Consumption, client secrets, publish profiles, and broad permission escalation remain prohibited.
