@@ -7,7 +7,7 @@ This directory contains the source-controlled ARM infrastructure for the resolve
 The template provisions:
 
 - Azure Storage static website hosting for the frontend.
-- Azure Functions Linux Consumption hosting.
+- Azure Functions Flex Consumption hosting (FC1), Linux.
 - Azure Functions host storage.
 - Azure Cosmos DB for Table API in serverless capacity.
 - The single `VisitorCounter` table.
@@ -18,9 +18,11 @@ The template provisions:
 
 The approved MVP recurring Azure/cloud cost ceiling is **R100/month**. The previous **USD $40/month** wording is obsolete and must not be used for the current MVP baseline. **R100/month is the authoritative recurring ceiling**, with lower cost preferred where practical.
 
-The approved MVP ARM architecture uses **Azure Functions Linux Consumption** hosting (`Y1` / Dynamic). This is an intentional MVP architecture decision. Microsoft has announced that hosting Function Apps on Linux in the Consumption plan will retire on **30 September 2028**; Linux Consumption is no longer receiving new features or language versions, and Microsoft directs affected apps toward **Flex Consumption**. The MVP can therefore proceed with Linux Consumption as the current approved hosting model while treating migration to Flex Consumption as a lifecycle requirement before retirement.
+The previous MVP ARM architecture used **Azure Functions Linux Consumption** (`Y1` / Dynamic). That decision is now **superseded**. The current approved architecture is **Azure Functions Flex Consumption (`FC1`)**, Linux, Functions runtime v4, Python 3.12, serverless scale-to-zero, and zero always-ready instances for the MVP. The previous Y1 deployment failed because the subscription had Y1 VM quota = 0 and the attempted increase to 1 was unsuccessful. No further Y1 quota request is authorized.
 
-The retirement is a lifecycle constraint, not a Phase 7.3 blocker. The production cost gate remains **<= R100/month** for the complete deployed MVP.
+The committed `azuredeploy.json` remains temporarily for traceability but is **not a current deployment artifact**. Phase 1 must replace its hosting configuration with the approved Flex model.
+
+The hosting-model change is a Phase 0 architectural baseline change and is a Phase 1 IaC implementation prerequisite. The production cost gate remains **<= R100/month** for the complete deployed MVP.
 
 The template does **not** provision the public HTTPS/CDN delivery layer yet. ADR-006 deliberately leaves the exact Azure edge service/SKU as an implementation-time selection. Selecting one without validating availability, lifecycle, FreeDNS hostname compatibility, Storage origin compatibility, IaC support, and the R100/month ceiling would violate the project source of truth.
 
@@ -91,7 +93,7 @@ The deployment outputs include the frontend Storage endpoint, Function URL, Cosm
 - The Function uses `DefaultAzureCredential` for Cosmos DB.
 - Cosmos local/key authentication is disabled.
 - The Cosmos built-in Table Data Contributor role is used for the Function identity and scoped to the single counter table.
-- The Functions platform host-storage connection is generated at deployment time from Azure Storage keys because this project remains on the approved classic Consumption plan. The value is not hardcoded in source and is not exported as an output.
+- The Functions platform host-storage connection text above describes the historical Consumption/Y1 implementation and is superseded. Flex Consumption requires the Phase 1 ARM implementation to use its identity-based storage/deployment configuration; the existing connection-string approach must not be treated as current.
 - The frontend deployment identity is not created by this template; it is managed by the frontend repository's OIDC setup.
 - The backend GitHub OIDC identity is a separate delivery/identity concern and must be provisioned with the backend CI/CD work.
 

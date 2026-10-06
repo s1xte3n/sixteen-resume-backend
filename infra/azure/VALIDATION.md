@@ -1,5 +1,13 @@
 # Phase 7.3 — Azure IaC Validation Record
 
+## Phase 0 Status
+
+This document contains historical validation evidence for the superseded Linux Consumption/Y1 template. It must not be interpreted as current Azure acceptance evidence.
+
+**Current approved hosting:** Azure Functions Flex Consumption (FC1), Linux, Functions v4, Python 3.12, serverless scale-to-zero, zero always-ready instances for MVP.
+
+The previous deployment failed because `Microsoft.Web/serverfarms/sixteen-resume-functions` could not provision with subscription Y1 VM quota = 0. The requested quota increase to 1 was unsuccessful. No further Y1 quota request is authorized.
+
 ## Scope
 
 This record covers validation of the approved Phase 7.3 Azure core infrastructure in infra/azure/azuredeploy.json.
@@ -11,7 +19,7 @@ It does not declare Phase 7 complete and does not claim live Azure deployment su
 | Area | Status | Evidence |
 |---|---|---|
 | Azure Storage static website | PASS | ARM template + tests/test_arm_template.py |
-| Azure Functions Linux Consumption | PASS | Microsoft.Web/serverfarms, SKU Y1, tier Dynamic, Linux Function App |
+| Azure Functions Linux Consumption (historical) | SUPERSEDED | Microsoft.Web/serverfarms, SKU Y1, tier Dynamic, Linux Function App |
 | Cosmos DB Table API | PASS | EnableTable capability + table resource |
 | Cosmos serverless capacity | PASS | EnableServerless capability |
 | Managed identity | PASS | Function App system-assigned identity |
@@ -27,7 +35,7 @@ It does not declare Phase 7 complete and does not claim live Azure deployment su
 | ARM parameters/outputs | PASS | Template defines deployment inputs and core outputs |
 | Credential safety | PASS | No long-lived CI/Cosmos credential markers in template |
 | Cost documentation | PASS | R100/month recurring Azure/cloud ceiling is authoritative |
-| Linux Consumption lifecycle | PASS | Retirement recorded as 30 September 2028; Flex Consumption retained as future migration target |
+| Linux Consumption lifecycle (historical) | SUPERSEDED | Retirement/migration rationale led to the approved Flex Consumption change |
 
 ## Test coverage added
 
@@ -53,11 +61,11 @@ The following evidence remains required and is intentionally not claimed here:
 7. Complete deployed cost evidence proving the recurring ceiling remains <= R100/month.
 8. Successful CI/CD deployment evidence using the approved OIDC identities.
 
-## Hosting lifecycle
+## Current Hosting Baseline
 
-The approved MVP continues to use Azure Functions Linux Consumption because that is the current approved architecture.
+The project no longer uses Linux Consumption/Y1 as its current architecture. The current decision is Azure Functions Flex Consumption (FC1), Linux, Functions v4, Python 3.12, serverless scale-to-zero, and zero always-ready instances for the MVP.
 
-Microsoft has announced that Linux Consumption hosting retires on 30 September 2028. The project therefore treats Flex Consumption as the future migration target rather than silently changing the current MVP hosting model.
+Flex-specific ARM validation is a Phase 1 follow-up. The existing ARM tests and historical validation evidence apply only to the superseded template.
 
 ## Acceptance boundary
 

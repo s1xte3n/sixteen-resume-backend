@@ -28,16 +28,24 @@ The local in-memory counter remains the default when `VISITOR_COUNTER_BACKEND` i
 
 The canonical Phase 7.1 contract is stored under `docs/api/`: `API-CONTRACT.md`, `API-ENDPOINTS.md`, `API-SCHEMAS.md`, `API-ERRORS.md`, `API-VARIABLES.md`, `API-EXAMPLES.md`, `API-CHANGELOG.md`, and `openapi.yaml`.
 
+## Phase 0 — Hosting-model re-baseline
+
+The previously approved Linux Consumption/Y1 hosting model is **superseded**. The current approved model is **Azure Functions Flex Consumption (FC1), Linux, Functions runtime v4, Python 3.12, serverless scale-to-zero, and zero always-ready instances for the MVP**.
+
+The previous Y1 deployment failed because the subscription had Y1 VM quota = 0; the attempted increase to 1 was unsuccessful. No further Y1 quota request is authorized. The existing ARM template is therefore historical/superseded and must not be deployed. Phase 1 must replace the hosting resource/configuration with the Flex Consumption model.
+
 ## Phase 7.3 — Azure IaC / Infrastructure Integration
 
 The committed ARM template is:
 
 `infra/azure/azuredeploy.json`
 
-It provisions the resolved Azure core infrastructure:
+**Phase 0 status: superseded implementation.** It currently encodes the historical Linux Consumption/Y1 model and is not the current deployment baseline. The template remains temporarily for traceability and must be replaced/updated during Phase 1.
+
+It currently provisions the resolved Azure core infrastructure:
 
 - Azure Storage static website hosting for the frontend.
-- Azure Functions Linux Consumption hosting.
+- Azure Functions Linux Consumption hosting (historical/superseded).
 - Function host storage.
 - Azure Cosmos DB for Table API in serverless capacity.
 - The single `VisitorCounter` table.
@@ -49,9 +57,9 @@ It provisions the resolved Azure core infrastructure:
 
 The approved MVP recurring Azure/cloud cost ceiling is **R100/month**. The previous **USD $40/month** wording is obsolete and must not be used for the current MVP baseline. **R100/month is the authoritative recurring ceiling**, with lower cost preferred where practical.
 
-The approved MVP ARM architecture uses **Azure Functions Linux Consumption** hosting (`Y1` / Dynamic). This is an intentional MVP architecture decision, not a statement that the hosting model is suitable beyond its supported lifecycle. Microsoft has announced that hosting Function Apps on Linux in the Consumption plan will retire on **30 September 2028**; Linux Consumption is no longer receiving new features or language versions, and Microsoft directs affected apps toward **Flex Consumption**. The MVP therefore records Linux Consumption as the currently approved implementation while retaining migration to Flex Consumption as a future lifecycle action before the retirement date.
+The historical MVP ARM architecture used **Azure Functions Linux Consumption** (`Y1` / Dynamic). This is superseded by the current Flex Consumption decision. The previous Y1 deployment failed because the subscription had Y1 VM quota = 0 and the attempted increase to 1 was unsuccessful. The historical lifecycle/retirement rationale is retained only as decision evidence; it is not the current hosting baseline.
 
-This retirement does not block the current Phase 7.3 IaC implementation, but it is a documented lifecycle constraint and must remain visible in future architecture, cost, and migration planning.
+The current deployment baseline is Azure Functions Flex Consumption (FC1), Linux, Functions v4, Python 3.12, scale-to-zero, and zero always-ready instances for MVP. The Flex ARM implementation is a Phase 1 follow-up.
 
 The public HTTPS/CDN delivery resource is intentionally **not** included yet. ADR-006 leaves the exact edge service/SKU as an implementation-time selection that must first satisfy current availability/lifecycle, FreeDNS hostname compatibility, Storage origin compatibility, IaC support, and the R100/month recurring cost ceiling.
 
@@ -172,7 +180,7 @@ The workflow does not yet perform a production Azure deployment. That belongs to
 
 Production application access does not use Cosmos connection strings or account keys. The Function uses its managed identity and Azure Cosmos DB for Table native data-plane RBAC. The Azure SDK's `DefaultAzureCredential` is used by the table adapter for the Azure runtime.
 
-The classic Consumption hosting model requires Azure Functions host storage configuration. The ARM template derives the platform storage connection string at deployment time rather than committing a credential to source; it is not emitted as an ARM output.
+The historical Consumption hosting model required Azure Files/content-share settings. Those settings are not the current Flex Consumption baseline and must be removed/reworked during the Phase 1 ARM update. The ARM template derives the platform storage connection string at deployment time rather than committing a credential to source; it is not emitted as an ARM output.
 
 GitHub-to-Azure OIDC for backend deployment is a separate delivery/identity configuration and is not hardcoded in this repository.
 
