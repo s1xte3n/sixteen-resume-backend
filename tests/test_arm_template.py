@@ -88,7 +88,7 @@ def test_flex_function_app_uses_function_app_config_for_runtime_scale_and_deploy
     assert deployment["authentication"]["type"] == "SystemAssignedIdentity"
     assert "deploymentStorageContainerName" in deployment["value"]
     assert config["scaleAndConcurrency"]["alwaysReady"] == []
-    assert "instanceMemoryMB" not in config["scaleAndConcurrency"]
+    assert config["scaleAndConcurrency"]["instanceMemoryMB"] == 512
     assert "maximumInstanceCount" not in config["scaleAndConcurrency"]
     assert "triggers" not in config["scaleAndConcurrency"]
 
