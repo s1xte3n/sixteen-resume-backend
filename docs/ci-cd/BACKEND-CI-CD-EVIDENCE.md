@@ -4,6 +4,16 @@
 
 **CONDITIONAL — local/CI validation passes; authenticated Azure deployment and runtime evidence remain pending.**
 
+## Phase 3 current blocker — 2026-10-07
+
+The production OIDC federation was corrected and the workflow progressed beyond the previous `AADSTS70025` failure. Azure ARM validation then failed on the role-assignment resource names because the template used `reference()` inside a resource `name` expression. ARM rejects `reference()` at that location.
+
+The corrective implementation makes role-assignment names deterministic from resource IDs, the Function App name, and stable role identifiers. The managed-identity `reference()` remains only in the role-assignment `principalId` properties. This preserves the approved identity/RBAC model without broadening permissions or changing the API contract.
+
+Production deployment remains **BLOCKED** until the corrected template passes Azure `az deployment group validate` and the subsequent controlled production run proves ARM deployment and runtime behavior.
+
+
+
 ## Implemented
 
 - Python 3.12 validation.
