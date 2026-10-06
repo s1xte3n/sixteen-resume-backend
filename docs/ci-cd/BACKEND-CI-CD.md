@@ -2,77 +2,120 @@
 
 ## Status
 
-**Implemented; production execution pending Azure/GitHub environment configuration and one controlled main-branch run.**
+**Flex Consumption deployment workflow implemented; live production execution evidence pending Azure/GitHub environment configuration and a controlled main-branch run.**
 
 ## Pipeline
 
-- Pull requests to `main`/`develop`: validation only.
-- Pushes to `main`: validation, then protected production deployment.
-- Validation installs Python dependencies, runs unit/persistence/ARM/HTTP contract tests, and starts local Azure Functions.
-- Production authenticates through GitHub Actions OIDC.
-- ARM is validated and deployed through `infra/azure/azuredeploy.json`.
-- The Function application is packaged and deployed after successful ARM deployment.
+- Pull requests to main/develop: validation only.
+- Pushes to main: validation, then protected production deployment.
+- Validation installs Python 3.12 dependencies, runs unit/persistence/ARM/HTTP contract tests, and starts the local Azure Functions host.
+- Production authenticates through GitHub Actions Microsoft Entra OIDC.
+- The workflow verifies current Flex Consumption regional availability and Python 3.12 availability before deployment.
+- ARM is validated and deployed through infra/azure/azuredeploy.json.
+- The deployed plan is verified as FC1 / FlexConsumption.
+- The Function App is verified as Linux, system-assigned identity, Python 3.12, Functions v4, zero always-ready, and identity-based runtime storage.
+- The workflow builds a ready-to-run released-package.zip.
+- Azure/functions-action@v1 performs the supported Flex package deployment path; the workflow does not directly upload a package into the deployment container.
+- The Function App state is verified after package deployment.
 - Deployment evidence is uploaded as a GitHub Actions artifact.
+- Any test, ARM, authentication, package, or deployment failure fails the workflow.
 
 ## Production environment
 
-GitHub environment: `production`
+GitHub environment: production
 
-### Secrets
+### OIDC secrets
 
-`AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`
+AZURE_CLIENT_ID  
+AZURE_TENANT_ID  
+AZURE_SUBSCRIPTION_ID
 
-These are OIDC identifiers. No client secret, publish profile, storage key, SAS token, or connection string is used.
+These are OIDC identifiers. No client secret, publish profile, storage key, SAS token, or Azure connection string is used.
 
 ### Variables
 
-`AZURE_RESOURCE_GROUP`  
-`AZURE_LOCATION`  
-`FRONTEND_STORAGE_ACCOUNT_NAME`  
-`FUNCTION_STORAGE_ACCOUNT_NAME`  
-`FUNCTION_PLAN_NAME`  
-`FUNCTION_APP_NAME`  
-`COSMOS_ACCOUNT_NAME`  
-`COSMOS_TABLE_NAME`  
-`CORS_ALLOWED_ORIGIN`
+AZURE_RESOURCE_GROUP  
+AZURE_LOCATION  
+FRONTEND_STORAGE_ACCOUNT_NAME  
+FUNCTION_STORAGE_ACCOUNT_NAME  
+DEPLOYMENT_STORAGE_ACCOUNT_NAME  
+DEPLOYMENT_STORAGE_CONTAINER_NAME  
+FUNCTION_PLAN_NAME  
+FUNCTION_APP_NAME  
+COSMOS_ACCOUNT_NAME  
+COSMOS_TABLE_NAME  
+CORS_ALLOWED_ORIGIN
 
-Configure these as production environment variables; never commit environment-specific values that are not approved for source control.
+Configure these as production environment variables. Do not commit environment-specific secret values.
+
+## Flex deployment storage
+
+The Function App uses a private Blob container as its deployment source through functionAppConfig.deployment.storage.
+
+Authentication is SystemAssignedIdentity.
+
+The deployment storage account is separate from runtime host storage so deployment access can use Storage Blob Data Contributor without expanding the deployment identity's scope beyond package access.
+
+## Runtime storage
+
+The Function App uses:
+
+AzureWebJobsStorage__accountName
+
+No AzureWebJobsStorage connection string is configured in production.
+
+The runtime Storage account disables shared-key access.
+
+The Function App system-assigned identity receives the documented host-storage roles.
+
+## Package deployment
+
+Flex Consumption uses package deployment.
+
+The workflow creates a ready-to-run released-package.zip containing the Function entry point, host configuration, source package, and installed Python dependencies.
+
+Direct Blob upload to the deployment container is not used as the activation mechanism.
 
 ## Evidence
 
 Production deployment produces:
 
-- `arm-deployment.json`
-- `deployment-evidence.txt`
+- arm-deployment.json
+- flex-locations.json
+- flex-python-runtimes.json
+- flex-plan.json
+- flex-app.json
+- function-settings.json
+- deployment-evidence.txt
+- released-package.zip
 
-The evidence records commit, workflow run, resource group, Function App, and ARM deployment outcome.
+The evidence records the commit, workflow run, resource group, Function App, hosting plan, ARM outcome, and package deployment model.
 
 ## Remaining verification
 
-The repository cannot prove the following from source alone:
+Source inspection cannot prove:
 
 1. Production GitHub environment configuration.
 2. Azure federated OIDC credential.
 3. Deployment identity RBAC.
-4. Successful Azure deployment.
-5. Successful Function deployment.
-6. Retained deployment artifact.
-7. GitHub main-branch protection/required checks.
+4. Subscription-specific East US Flex capacity.
+5. Successful ARM deployment.
+6. Successful Flex package deployment.
+7. Function runtime startup.
+8. Runtime Storage RBAC.
+9. Cosmos Table RBAC.
+10. Production API regression without violating the approved visitor semantics.
+11. Production cost <= R100/month.
+12. Public HTTPS/CDN and hostname acceptance.
 
-The GitHub integration could not read branch-protection configuration, so that item remains **BLOCKED/PENDING VERIFICATION**.
+No pending item is represented as passed.
 
 ## Architecture boundary
 
-The workflow deploys only the approved core ARM infrastructure and Function application. It does not select the unresolved HTTPS/CDN edge service.
+The workflow deploys only the approved core ARM infrastructure and Function application. It does not select or modify the unresolved HTTPS/CDN edge service.
 
-Linux Consumption remains the approved MVP hosting model. Microsoft's announced Linux Consumption retirement on 30 September 2028 is a lifecycle constraint; Flex Consumption migration remains a future requirement.
+Y1/Linux Consumption is historical/superseded and is not a deployment option.
 
-The approved recurring Azure/cloud cost ceiling remains **R100/month**.
+The API remains GET /api/visitors and hosting migration does not authorize contract changes.
 
-
-## Phase 1 Flex deployment baseline
-The backend production deployment target is Azure Functions Flex Consumption FC1, Linux, Functions runtime v4, Python 3.12, scale-to-zero and zero always-ready MVP.
-Phase 2 must replace the current historical Y1 ARM/deployment assumptions with Flex-compatible functionAppConfig, blob-container deployment storage, system-assigned managed-identity storage authentication and provider-supported package deployment.
-Backend CI/CD must continue to use Microsoft Entra OIDC and run Python tests before deployment. Flex provisioning/package/deployment failure must fail the workflow.
-The current API remains GET /api/visitors; hosting migration does not authorize API contract changes.
-Any Y1/Linux Consumption reference in this document is historical/superseded and not a current deployment instruction.
+The approved recurring Azure/cloud cost ceiling remains R100/month, with R0/month preferred.

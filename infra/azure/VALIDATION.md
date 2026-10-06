@@ -1,72 +1,170 @@
-# Phase 7.3 — Azure IaC Validation Record
+# Phase 2 — Azure Functions Flex Consumption IaC Validation
 
-## Phase 0 Status
+## Status
+**Implementation complete; authenticated Azure validation and production deployment evidence pending.**
 
-This document contains historical validation evidence for the superseded Linux Consumption/Y1 template. It must not be interpreted as current Azure acceptance evidence.
+Y1/Linux Consumption is historical evidence only. No Y1 quota increase is required or authorized.
 
-**Current approved hosting:** Azure Functions Flex Consumption (FC1), Linux, Functions v4, Python 3.12, serverless scale-to-zero, zero always-ready instances for MVP.
+## Current hosting baseline
 
-The previous deployment failed because `Microsoft.Web/serverfarms/sixteen-resume-functions` could not provision with subscription Y1 VM quota = 0. The requested quota increase to 1 was unsuccessful. No further Y1 quota request is authorized.
+| Property | Approved/current |
+|---|---|
+| Hosting | Azure Functions Flex Consumption |
+| SKU | FC1 |
+| OS | Linux |
+| Functions runtime | v4 |
+| Python | 3.12 |
+| Scaling | Serverless scale-to-zero |
+| Always-ready | Zero for MVP |
+| Function identity | System-assigned managed identity |
+| Runtime storage | Identity-based AzureWebJobsStorage__accountName |
+| Deployment source | Private Blob container |
+| Deployment auth | System-assigned managed identity |
+| Package deployment | Flex-compatible package deployment through supported tooling |
+| Persistence | Azure Cosmos DB Table API |
+| Cosmos capacity | Serverless |
+| IaC | ARM |
+| CI/CD | GitHub Actions |
+| Azure authentication | Microsoft Entra OIDC |
+| Region | East US |
 
-## Scope
+## Structural validation
 
-This record covers validation of the approved Phase 7.3 Azure core infrastructure in infra/azure/azuredeploy.json.
+`tests/test_arm_template.py` verifies:
+- East US is the only allowed deployment region.
+- The Functions plan is FC1 / FlexConsumption.
+- Linux is represented by the Function App resource kind.
+- functionAppConfig contains Flex deployment storage, runtime and scale configuration.
+- Python 3.12 is configured in functionAppConfig.runtime.
+- alwaysReady is explicitly empty for the MVP.
+- Instance memory, maximum instance count, HTTP concurrency and site-update strategy are not invented as fixed values.
+- Deployment storage is a private blob container.
+- Deployment storage uses system-assigned managed-identity authentication.
+- Runtime storage uses AzureWebJobsStorage__accountName.
+- Legacy WEBSITE_CONTENTAZUREFILECONNECTIONSTRING, WEBSITE_CONTENTSHARE, and WEBSITE_RUN_FROM_PACKAGE settings are absent.
+- Runtime/deployment storage accounts disable shared-key access.
+- Function system-assigned identity is present.
+- Runtime storage RBAC uses Storage Blob Data Owner plus Storage Table Data Contributor.
+- Deployment storage RBAC uses Storage Blob Data Contributor.
+- Cosmos Table RBAC remains scoped to VisitorCounter.
+- Cosmos Table API serverless capability remains enabled.
+- No long-lived credential markers are present.
+- No Y1/Dynamic hosting configuration remains.
 
-It does not declare Phase 7 complete and does not claim live Azure deployment success without authenticated Azure evidence.
+## Package/deployment validation
 
-## Source/configuration validation
+The backend CI workflow:
+1. Runs Python unit tests.
+2. Runs persistence tests.
+3. Runs ARM structural tests.
+4. Runs local HTTP contract tests for GET /api/visitors.
+5. Authenticates to Azure through OIDC on main.
+6. Verifies current Flex Consumption regional availability.
+7. Verifies Python 3.12 is listed for Flex in the approved region.
+8. Runs az deployment group validate.
+9. Deploys the ARM template.
+10. Verifies ARM provisioning state.
+11. Verifies the deployed FC1/Linux/Python 3.12/functionAppConfig/runtime-storage configuration.
+12. Builds a ready-to-run released-package.zip.
+13. Deploys the package through Azure/functions-action@v1 using the supported Flex package-deployment path.
+14. Verifies the Function App reaches Running.
+15. Uploads deployment evidence.
 
-| Area | Status | Evidence |
+Direct upload of a package into the deployment container is not used as a deployment mechanism.
+
+## Identity/RBAC validation
+
+### Function runtime identity
+The Function App uses a system-assigned managed identity.
+
+It is authorized for:
+- runtime host storage on the runtime Storage account;
+- Cosmos DB Table API access scoped to the VisitorCounter table;
+- deployment package access on the private deployment Storage account.
+
+### Storage roles
+
+| Scope | Role | Purpose |
 |---|---|---|
-| Azure Storage static website | PASS | ARM template + tests/test_arm_template.py |
-| Azure Functions Linux Consumption (historical) | SUPERSEDED | Microsoft.Web/serverfarms, SKU Y1, tier Dynamic, Linux Function App |
-| Cosmos DB Table API | PASS | EnableTable capability + table resource |
-| Cosmos serverless capacity | PASS | EnableServerless capability |
-| Managed identity | PASS | Function App system-assigned identity |
-| Cosmos Table RBAC | PASS | Built-in Table Data Contributor role scoped to VisitorCounter table |
-| Function application settings | PASS | Python 3.12, Functions v4, production table backend, Cosmos endpoint |
-| Production CORS | PASS | Parameterized, non-wildcard origin |
-| HTTPS | PASS for Function endpoint | httpsOnly=true |
-| Static-site HTTPS/CDN | BLOCKED | Exact edge service remains pending ADR-006 implementation validation |
-| Application Insights resource | NOT REQUIRED | Architecture requires diagnosable Function/platform logs but does not mandate a separate Application Insights resource |
-| Runtime logging | PASS | Controlled visitor API failures are logged with request IDs and without exception details in public responses |
-| Resource dependencies | PASS | Function depends on hosting plan, host storage, Cosmos account, and counter table |
-| East US | PASS | Location parameter restricted to eastus |
-| ARM parameters/outputs | PASS | Template defines deployment inputs and core outputs |
-| Credential safety | PASS | No long-lived CI/Cosmos credential markers in template |
-| Cost documentation | PASS | R100/month recurring Azure/cloud ceiling is authoritative |
-| Linux Consumption lifecycle (historical) | SUPERSEDED | Retirement/migration rationale led to the approved Flex Consumption change |
+| Runtime Storage account | Storage Blob Data Owner | Minimum documented host-storage permission |
+| Runtime Storage account | Storage Table Data Contributor | Host diagnostic table operations |
+| Deployment Storage account | Storage Blob Data Contributor | Deployment package access |
 
-## Test coverage added
+No Storage keys or SAS tokens are configured for the Function App.
 
-tests/test_arm_template.py now verifies:
+## Local validation
 
-- approved East US location;
-- explicit Linux Consumption Y1 / Dynamic hosting;
-- Function resource dependency ordering;
-- existing Storage, Cosmos, identity, CORS, RBAC, and credential-safety controls.
+pytest -q tests/test_arm_template.py
+pytest -q tests/test_visitors.py
+RUN_AZURITE_TESTS=true pytest -q tests/test_table_counter.py
+RUN_FUNCTION_HOST_TESTS=true FUNCTION_BASE_URL=http://127.0.0.1:7071 pytest -q tests/test_http_contract.py
 
-tests/test_visitors.py now verifies that controlled dependency and unexpected runtime failures are logged while exception details are not returned to the public API response.
+These prove source and local behavior only. They do not prove Azure provisioning, RBAC, Flex capacity, package deployment, or production runtime behavior.
 
-## Live Azure validation
+## Authenticated Azure validation
 
-The following evidence remains required and is intentionally not claimed here:
+Required commands:
 
-1. az deployment group validate against the approved production resource group.
-2. Successful resource-group deployment from the committed ARM template.
-3. Runtime verification of Function managed identity access to the Cosmos Table API.
-4. Deployed visitor API smoke/contract verification.
-5. Exact HTTPS/CDN service selection and deployment.
-6. FreeDNS hostname and HTTPS evidence.
-7. Complete deployed cost evidence proving the recurring ceiling remains <= R100/month.
-8. Successful CI/CD deployment evidence using the approved OIDC identities.
+az functionapp list-flexconsumption-locations --query "sort_by(@, &name)[].{Region:name}" -o table
+az functionapp list-flexconsumption-runtimes --location eastus --runtime python -o json
+az deployment group validate with infra/azure/azuredeploy.json and the production resource-group parameters.
 
-## Current Hosting Baseline
+The Flex availability command proves that East US is currently listed as a supported Flex region; it does not prove subscription-specific capacity.
 
-The project no longer uses Linux Consumption/Y1 as its current architecture. The current decision is Azure Functions Flex Consumption (FC1), Linux, Functions v4, Python 3.12, serverless scale-to-zero, and zero always-ready instances for the MVP.
+Subscription-specific capacity is validated only by a successful authenticated ARM deployment.
 
-Flex-specific ARM validation is a Phase 1 follow-up. The existing ARM tests and historical validation evidence apply only to the superseded template.
+## Live evidence still required
+
+1. East US Flex capacity for the actual subscription.
+2. Successful ARM deployment.
+3. Function managed identity access to runtime storage.
+4. Function managed identity access to deployment storage.
+5. Cosmos Table RBAC authorization.
+6. Successful Flex package deployment.
+7. Function runtime startup.
+8. API regression against the deployed Function.
+9. GitHub OIDC federation and RBAC execution.
+10. Production cost evidence <= R100/month.
+11. HTTPS/CDN and public hostname evidence.
+12. End-to-end frontend counter verification.
+
+## Failure classification
+
+| Failure | Expected gate behavior |
+|---|---|
+| East US not listed for Flex | Deployment blocked |
+| Python 3.12 unavailable in East US Flex | Deployment blocked |
+| Subscription lacks Flex capacity | Deployment blocked |
+| ARM validation fails | CI fails before deployment |
+| ARM deployment fails | CI fails |
+| Function package deployment fails | CI fails |
+| Function App not Running after package deployment | CI fails |
+| OIDC authentication fails | CI fails |
+| Storage RBAC missing | Deployment/runtime verification fails |
+| Cosmos RBAC missing | API/runtime verification fails |
+| Cost exceeds R100/month | Production blocked |
+| Y1/Dynamic plan appears | Immediate release blocker |
+
+## API contract
+
+The API contract remains unchanged: GET /api/visitors.
+
+Flex migration does not change the method, path, response schema, error schema, request-ID behavior, visitor semantics, persistence semantics, concurrency semantics, CORS boundary, or browser-to-Cosmos isolation.
+
+## Security boundary
+
+No browser-facing component receives Storage keys, SAS tokens, Cosmos credentials, Azure deployment credentials, or client secrets.
+
+GitHub Actions uses Microsoft Entra OIDC.
 
 ## Acceptance boundary
 
-Phase 7.3 core IaC is implementation-ready but not production-accepted until the live Azure and edge-delivery evidence above is available.
+Phase 2 infrastructure is implementation-complete when the repository contains the Flex architecture and local structural tests pass.
+
+Phase 2 is production-ready only after authenticated Azure validation, deployment evidence, runtime/RBAC verification, CI/CD evidence, and cost validation pass.
+
+## Executed CI evidence
+
+Backend CI run 51 for the Phase 2 branch completed successfully on 2026-10-06. The run passed deterministic unit tests, Flex ARM structural tests, Azurite persistence/concurrency tests, local Functions host startup, and executable HTTP contract tests.
+
+Authenticated Azure validation was not executed by the PR workflow because production deployment is intentionally gated to a push to main. Therefore Azure provisioning, Flex subscription capacity, OIDC production execution, runtime RBAC, package activation, and cost validation remain unproven.
