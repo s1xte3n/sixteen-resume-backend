@@ -145,3 +145,15 @@ The affected deployment identity is service principal object ID `8d9ee8de-bc32-4
 This is a deployment-authority RBAC prerequisite, not an ARM template defect. The approved fix is constrained role-assignment delegation at the production resource-group scope. Owner, Contributor, client secrets, publish profiles, and manual production repair remain prohibited.
 
 The following evidence remains **unproven** until the fresh main workflow succeeds: ARM deployment, Flex subscription capacity, live Function configuration, package activation, runtime startup, Storage/Cosmos authorization, API behavior, persistence/concurrency, browser isolation, CORS, security, observability, and cost.
+
+## Phase 4 continuation — FC1 instance memory requirement — 2026-10-07
+
+The first controlled production ARM deployment reached the Function App resource and Azure rejected `functionAppConfig.scaleAndConcurrency.instanceMemoryMB` because Flex requires an explicit instance memory value. Azure reported the supported values as `512`, `2048`, and `4096` MB.
+
+The approved template is corrected to set `instanceMemoryMB` explicitly to **512 MB**, the lowest Azure-supported value and the value consistent with the project's low-cost serverless visitor-counter workload. This is an Azure provider-required configuration value; it does not introduce an invented capacity target.
+
+`alwaysReady` remains an empty array, so zero always-ready instances and scale-to-zero remain unchanged. No maximum instance count, HTTP concurrency, or site-update strategy has been added.
+
+The ARM structural test now asserts the required `instanceMemoryMB: 512` value. This correction does not change the API, storage model, Cosmos model, identity model, RBAC scopes, or deployment architecture.
+
+**Current gate: BLOCKED.** The corrected branch must pass CI and the production workflow must be rerun from `main`. The failed deployment must not be manually repaired.
