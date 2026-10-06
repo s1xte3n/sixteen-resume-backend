@@ -121,3 +121,27 @@ After the exact subscription scope and least-privilege role assignment are corre
 ### Evidence boundary
 
 The direct az deployment group validate result is valid ARM validation evidence, but it is not a substitute for the required GitHub OIDC production execution evidence.
+
+
+## Phase 4 continuation — current blocker supersession — 2026-10-07
+
+The previous ARM-template validation blockers are no longer active. Current direct evidence:
+
+- approved production resource group: `rg-sixteen-resume-prod`;
+- region: `eastus`;
+- ARM validation: **Succeeded**;
+- deployment storage account: `st16resumedeploy`;
+- deployment container: `function-deployments`;
+- federated credential issuer: `https://token.actions.githubusercontent.com`;
+- federated credential audience: `api://AzureADTokenExchange`;
+- production GitHub subject: `repo:s1xte3n@39813590/sixteen-resume-backend@1373839879:environment:production`.
+
+The current production failure is:
+
+`Authorization failed ... does not have permission to perform action Microsoft.Authorization/roleAssignments/write`
+
+The affected deployment identity is service principal object ID `8d9ee8de-bc32-4744-b44a-616cafd83559`.
+
+This is a deployment-authority RBAC prerequisite, not an ARM template defect. The approved fix is constrained role-assignment delegation at the production resource-group scope. Owner, Contributor, client secrets, publish profiles, and manual production repair remain prohibited.
+
+The following evidence remains **unproven** until the fresh main workflow succeeds: ARM deployment, Flex subscription capacity, live Function configuration, package activation, runtime startup, Storage/Cosmos authorization, API behavior, persistence/concurrency, browser isolation, CORS, security, observability, and cost.

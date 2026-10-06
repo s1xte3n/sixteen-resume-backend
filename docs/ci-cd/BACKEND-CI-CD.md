@@ -135,3 +135,22 @@ The ARM template validation defects identified during Phase 3 have been correcte
 **Current production gate: BLOCKED.**
 
 No API, hosting baseline, deployment model, or credential model has been changed. Y1/Linux Consumption, client secrets, publish profiles, and broad permission escalation remain prohibited.
+
+
+## Phase 4 continuation — RBAC deployment prerequisite — 2026-10-07
+
+The ARM template validation defects are resolved. Direct Azure validation now returns `provisioningState: Succeeded` for the approved production parameters.
+
+The active blocker is now narrower: the GitHub Actions deployment service principal (object ID `8d9ee8de-bc32-4744-b44a-616cafd83559`) can authenticate through the approved OIDC federation but does not have `Microsoft.Authorization/roleAssignments/write` at the production resource-group scope. The ARM template intentionally creates the Function identity's Storage/Cosmos RBAC assignments, so the deployment identity must have constrained role-assignment-management permission.
+
+Required manual Azure prerequisite:
+
+- Do not grant Owner.
+- Do not grant Contributor.
+- Do not add a client secret or publish profile.
+- Grant the deployment identity the least-privileged role-assignment capability required by the ARM deployment, preferably Role Based Access Control Administrator with an ABAC condition restricted to the three approved data roles used by the template: Storage Blob Data Owner, Storage Table Data Contributor, and Storage Blob Data Contributor, and ServicePrincipal principals.
+- Scope that delegation to `/subscriptions/aab5f649-b686-4f86-95cc-aa72ae71f03b/resourceGroups/rg-sixteen-resume-prod` only.
+
+After the prerequisite is applied, the only authorized production test is a fresh GitHub Actions run from `main`. No manual production ARM deployment is an acceptable substitute for CI evidence.
+
+**Phase 4 remains BLOCKED until that workflow succeeds and produces the required deployment/runtime evidence.**
