@@ -37,7 +37,7 @@ Y1/Linux Consumption is historical evidence only. No Y1 quota increase is requir
 - functionAppConfig contains Flex deployment storage, runtime and scale configuration.
 - Python 3.12 is configured in functionAppConfig.runtime.
 - alwaysReady is explicitly empty for the MVP.
-- Instance memory, maximum instance count, HTTP concurrency and site-update strategy are not invented as fixed values.
+- Instance memory is explicitly set to 512 MB because Flex requires it; maximum instance count is explicitly set to 1 because Azure requires a value and the project selects the lowest active-instance ceiling consistent with the low-cost MVP. HTTP concurrency and site-update strategy are not invented as fixed values.
 - Deployment storage is a private blob container.
 - Deployment storage uses system-assigned managed-identity authentication.
 - Runtime storage uses AzureWebJobsStorage__accountName.
@@ -275,8 +275,8 @@ The first controlled production ARM deployment reached the Function App resource
 
 The approved template is corrected to set `instanceMemoryMB` explicitly to **512 MB**, the lowest Azure-supported value and the value consistent with the project's low-cost serverless visitor-counter workload. This is an Azure provider-required configuration value; it does not introduce an invented capacity target.
 
-`alwaysReady` remains an empty array, so zero always-ready instances and scale-to-zero remain unchanged. No maximum instance count, HTTP concurrency, or site-update strategy has been added.
+`alwaysReady` remains an empty array, so zero always-ready instances and scale-to-zero remain unchanged. No HTTP concurrency or site-update strategy has been added. `maximumInstanceCount: 1` is provider-required configuration, not an invented throughput target.
 
-The ARM structural test now asserts the required `instanceMemoryMB: 512` value. This correction does not change the API, storage model, Cosmos model, identity model, RBAC scopes, or deployment architecture.
+The ARM structural test now asserts the provider-required `instanceMemoryMB: 512` value and `maximumInstanceCount: 1`. This correction does not change the API, storage model, Cosmos model, identity model, RBAC scopes, or deployment architecture.
 
 **Current gate: BLOCKED.** The corrected branch must pass CI and the production workflow must be rerun from `main`. The failed deployment must not be manually repaired.
