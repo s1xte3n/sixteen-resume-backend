@@ -28,13 +28,21 @@ The local in-memory counter remains the default when `VISITOR_COUNTER_BACKEND` i
 
 The canonical Phase 7.1 contract is stored under `docs/api/`: `API-CONTRACT.md`, `API-ENDPOINTS.md`, `API-SCHEMAS.md`, `API-ERRORS.md`, `API-VARIABLES.md`, `API-EXAMPLES.md`, `API-CHANGELOG.md`, and `openapi.yaml`.
 
+## Phase 0 — Hosting-model re-baseline
+
+The previously approved Linux Consumption/Y1 hosting model is **superseded**. The current approved model is **Azure Functions Flex Consumption (FC1), Linux, Functions runtime v4, Python 3.12, serverless scale-to-zero, and zero always-ready instances for the MVP**.
+
+The previous Y1 deployment failed because the subscription had Y1 VM quota = 0; the attempted increase to 1 was unsuccessful. No further Y1 quota request is authorized. The existing ARM template is therefore historical/superseded and must not be deployed. Phase 1 must replace the hosting resource/configuration with the Flex Consumption model.
+
 ## Phase 7.3 — Azure IaC / Infrastructure Integration
 
 The committed ARM template is:
 
 `infra/azure/azuredeploy.json`
 
-It provisions the resolved Azure core infrastructure:
+**Phase 0 status: superseded implementation.** It currently encodes the historical Linux Consumption/Y1 model and is not the current deployment baseline. The template remains temporarily for traceability and must be replaced/updated during Phase 1.
+
+It currently provisions the resolved Azure core infrastructure:
 
 - Azure Storage static website hosting for the frontend.
 - Azure Functions Linux Consumption hosting.
@@ -172,7 +180,7 @@ The workflow does not yet perform a production Azure deployment. That belongs to
 
 Production application access does not use Cosmos connection strings or account keys. The Function uses its managed identity and Azure Cosmos DB for Table native data-plane RBAC. The Azure SDK's `DefaultAzureCredential` is used by the table adapter for the Azure runtime.
 
-The classic Consumption hosting model requires Azure Functions host storage configuration. The ARM template derives the platform storage connection string at deployment time rather than committing a credential to source; it is not emitted as an ARM output.
+The historical Consumption hosting model required Azure Files/content-share settings. Those settings are not the current Flex Consumption baseline and must be removed/reworked during the Phase 1 ARM update. The ARM template derives the platform storage connection string at deployment time rather than committing a credential to source; it is not emitted as an ARM output.
 
 GitHub-to-Azure OIDC for backend deployment is a separate delivery/identity configuration and is not hardcoded in this repository.
 
