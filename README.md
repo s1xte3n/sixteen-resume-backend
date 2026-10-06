@@ -185,3 +185,9 @@ The historical Consumption hosting model required Azure Files/content-share sett
 GitHub-to-Azure OIDC for backend deployment is a separate delivery/identity configuration and is not hardcoded in this repository.
 
 No Azure credentials, Cosmos credentials, or CI secrets belong in source control.
+
+
+## Phase 1 — Flex Consumption requirements baseline
+The current hosting model is Azure Functions Flex Consumption FC1 on Linux, Functions runtime v4, Python 3.12, serverless scale-to-zero and zero always-ready instances for MVP.
+The existing infra/azure/azuredeploy.json is a historical/superseded Y1 implementation and must not be deployed. No Y1 quota increase is authorized.
+Phase 2 must replace the Y1 resource model with Flex functionAppConfig, identity-based deployment storage, Flex runtime storage configuration and Flex-compatible package deployment. The API contract remains GET /api/visitors.

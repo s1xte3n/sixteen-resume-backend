@@ -68,3 +68,11 @@ The workflow deploys only the approved core ARM infrastructure and Function appl
 Linux Consumption remains the approved MVP hosting model. Microsoft's announced Linux Consumption retirement on 30 September 2028 is a lifecycle constraint; Flex Consumption migration remains a future requirement.
 
 The approved recurring Azure/cloud cost ceiling remains **R100/month**.
+
+
+## Phase 1 Flex deployment baseline
+The backend production deployment target is Azure Functions Flex Consumption FC1, Linux, Functions runtime v4, Python 3.12, scale-to-zero and zero always-ready MVP.
+Phase 2 must replace the current historical Y1 ARM/deployment assumptions with Flex-compatible functionAppConfig, blob-container deployment storage, system-assigned managed-identity storage authentication and provider-supported package deployment.
+Backend CI/CD must continue to use Microsoft Entra OIDC and run Python tests before deployment. Flex provisioning/package/deployment failure must fail the workflow.
+The current API remains GET /api/visitors; hosting migration does not authorize API contract changes.
+Any Y1/Linux Consumption reference in this document is historical/superseded and not a current deployment instruction.

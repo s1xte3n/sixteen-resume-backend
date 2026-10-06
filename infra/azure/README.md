@@ -109,3 +109,10 @@ The template represents the resolved core infrastructure. Full `REQ-AZ-012` / `T
 6. The complete deployed cost is proven to remain <= R100/month.
 
 The ARM template is therefore **implemented but not production-accepted**.
+
+
+## Phase 1 requirements baseline
+The current approved Function hosting model is Flex Consumption FC1, Linux, Functions v4, Python 3.12, scale-to-zero and zero always-ready MVP.
+Phase 2 must replace the superseded Y1 ARM resource model with functionAppConfig, Flex deployment storage, managed-identity authentication and Flex-compatible package deployment.
+Legacy Azure Files/content-share settings are not current requirements. No Y1 quota increase is authorized.
+Exact deployment container, ARM API version, memory/concurrency and Storage role details remain implementation decisions constrained by the approved requirements.
