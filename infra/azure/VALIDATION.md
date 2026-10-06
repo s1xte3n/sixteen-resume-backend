@@ -162,3 +162,9 @@ GitHub Actions uses Microsoft Entra OIDC.
 Phase 2 infrastructure is implementation-complete when the repository contains the Flex architecture and local structural tests pass.
 
 Phase 2 is production-ready only after authenticated Azure validation, deployment evidence, runtime/RBAC verification, CI/CD evidence, and cost validation pass.
+
+## Executed CI evidence
+
+Backend CI run 51 for the Phase 2 branch completed successfully on 2026-10-06. The run passed deterministic unit tests, Flex ARM structural tests, Azurite persistence/concurrency tests, local Functions host startup, and executable HTTP contract tests.
+
+Authenticated Azure validation was not executed by the PR workflow because production deployment is intentionally gated to a push to main. Therefore Azure provisioning, Flex subscription capacity, OIDC production execution, runtime RBAC, package activation, and cost validation remain unproven.
