@@ -24,6 +24,7 @@ env:
   PYTHON_VERSION: "3.12"
   NODE_VERSION: "22"
   ARM_TEMPLATE: "infra/azure/azuredeploy.json"
+  PACKAGE_FILE: "released-package.zip"
 
 jobs:
   validate:
@@ -46,7 +47,7 @@ jobs:
       - name: Run deterministic unit tests
         run: pytest -q tests/test_visitors.py
 
-      - name: Validate committed ARM infrastructure
+      - name: Validate Flex ARM infrastructure structure
         run: pytest -q tests/test_arm_template.py
 
       - name: Set up Node.js
@@ -111,7 +112,7 @@ jobs:
             /tmp/visitors-response.json
 
   deploy:
-    name: Deploy Azure infrastructure and Function App
+    name: Deploy Flex infrastructure and Function App
     needs: validate
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
@@ -124,6 +125,12 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
       - name: Log in to Azure with OIDC
         uses: azure/login@v3
         with:
@@ -134,85 +141,148 @@ jobs:
       - name: Verify Azure subscription context
         run: az account show --output table
 
+      - name: Verify East US Flex Consumption availability
+        env:
+          AZURE_LOCATION: ${{ vars.AZURE_LOCATION }}
+        run: |
+          az functionapp list-flexconsumption-locations             --query "sort_by(@, &name)[].name"             --output json > flex-locations.json
+
+          python - <<'PY'
+          import json
+          import os
+
+          location = os.environ["AZURE_LOCATION"].lower()
+          locations = {item.lower() for item in json.load(open("flex-locations.json"))}
+          if location not in locations:
+              raise SystemExit(
+                  f"Flex Consumption is not currently listed for {location}."
+              )
+          print(f"Flex Consumption location available: {location}")
+          PY
+
+      - name: Verify Python 3.12 Flex runtime availability
+        env:
+          AZURE_LOCATION: ${{ vars.AZURE_LOCATION }}
+        run: |
+          az functionapp list-flexconsumption-runtimes             --location "${AZURE_LOCATION}"             --runtime python             --output json > flex-python-runtimes.json
+
+          python - <<'PY'
+          import json
+
+          data = json.load(open("flex-python-runtimes.json"))
+          text = json.dumps(data)
+          if "3.12" not in text:
+              raise SystemExit("Python 3.12 is not currently listed for Flex Consumption in the approved region.")
+          print("Python 3.12 is listed for Flex Consumption in the approved region.")
+          PY
+
       - name: Validate ARM template in Azure
         run: |
-          az deployment group validate \\
-            --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \\
-            --template-file "${{ env.ARM_TEMPLATE }}" \\
-            --parameters \\
-              location="${{ vars.AZURE_LOCATION }}" \\
-              environmentName="production" \\
-              frontendStorageAccountName="${{ vars.FRONTEND_STORAGE_ACCOUNT_NAME }}" \\
-              functionStorageAccountName="${{ vars.FUNCTION_STORAGE_ACCOUNT_NAME }}" \\
-              functionPlanName="${{ vars.FUNCTION_PLAN_NAME }}" \\
-              functionAppName="${{ vars.FUNCTION_APP_NAME }}" \\
-              cosmosAccountName="${{ vars.COSMOS_ACCOUNT_NAME }}" \\
-              cosmosTableName="${{ vars.COSMOS_TABLE_NAME }}" \\
-              corsAllowedOrigin="${{ vars.CORS_ALLOWED_ORIGIN }}"
+          az deployment group validate             --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}"             --template-file "${{ env.ARM_TEMPLATE }}"             --parameters               location="${{ vars.AZURE_LOCATION }}"               environmentName="production"               frontendStorageAccountName="${{ vars.FRONTEND_STORAGE_ACCOUNT_NAME }}"               functionStorageAccountName="${{ vars.FUNCTION_STORAGE_ACCOUNT_NAME }}"               deploymentStorageAccountName="${{ vars.DEPLOYMENT_STORAGE_ACCOUNT_NAME }}"               deploymentStorageContainerName="${{ vars.DEPLOYMENT_STORAGE_CONTAINER_NAME }}"               functionPlanName="${{ vars.FUNCTION_PLAN_NAME }}"               functionAppName="${{ vars.FUNCTION_APP_NAME }}"               cosmosAccountName="${{ vars.COSMOS_ACCOUNT_NAME }}"               cosmosTableName="${{ vars.COSMOS_TABLE_NAME }}"               corsAllowedOrigin="${{ vars.CORS_ALLOWED_ORIGIN }}"
 
-      - name: Deploy approved ARM infrastructure
+      - name: Deploy approved Flex ARM infrastructure
         id: arm-deploy
         run: |
-          az deployment group create \\
-            --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \\
-            --template-file "${{ env.ARM_TEMPLATE }}" \\
-            --parameters \\
-              location="${{ vars.AZURE_LOCATION }}" \\
-              environmentName="production" \\
-              frontendStorageAccountName="${{ vars.FRONTEND_STORAGE_ACCOUNT_NAME }}" \\
-              functionStorageAccountName="${{ vars.FUNCTION_STORAGE_ACCOUNT_NAME }}" \\
-              functionPlanName="${{ vars.FUNCTION_PLAN_NAME }}" \\
-              functionAppName="${{ vars.FUNCTION_APP_NAME }}" \\
-              cosmosAccountName="${{ vars.COSMOS_ACCOUNT_NAME }}" \\
-              cosmosTableName="${{ vars.COSMOS_TABLE_NAME }}" \\
-              corsAllowedOrigin="${{ vars.CORS_ALLOWED_ORIGIN }}" \\
-            --name "sixteen-resume-core-${{ github.run_number }}" \\
-            --output json > arm-deployment.json
+          az deployment group create             --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}"             --template-file "${{ env.ARM_TEMPLATE }}"             --parameters               location="${{ vars.AZURE_LOCATION }}"               environmentName="production"               frontendStorageAccountName="${{ vars.FRONTEND_STORAGE_ACCOUNT_NAME }}"               functionStorageAccountName="${{ vars.FUNCTION_STORAGE_ACCOUNT_NAME }}"               deploymentStorageAccountName="${{ vars.DEPLOYMENT_STORAGE_ACCOUNT_NAME }}"               deploymentStorageContainerName="${{ vars.DEPLOYMENT_STORAGE_CONTAINER_NAME }}"               functionPlanName="${{ vars.FUNCTION_PLAN_NAME }}"               functionAppName="${{ vars.FUNCTION_APP_NAME }}"               cosmosAccountName="${{ vars.COSMOS_ACCOUNT_NAME }}"               cosmosTableName="${{ vars.COSMOS_TABLE_NAME }}"               corsAllowedOrigin="${{ vars.CORS_ALLOWED_ORIGIN }}"             --name "sixteen-resume-flex-${{ github.run_number }}"             --output json > arm-deployment.json
 
       - name: Verify ARM deployment succeeded
         run: |
           python - <<'PY'
           import json
           from pathlib import Path
+
           state = json.loads(Path("arm-deployment.json").read_text()).get("properties", {}).get("provisioningState")
           if state != "Succeeded":
               raise SystemExit(f"ARM deployment failed: {state!r}")
           print(f"ARM provisioning state: {state}")
           PY
 
-      - name: Package Azure Function application
+      - name: Verify deployed Flex configuration
+        env:
+          RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+          FUNCTION_APP_NAME: ${{ vars.FUNCTION_APP_NAME }}
+          FUNCTION_PLAN_NAME: ${{ vars.FUNCTION_PLAN_NAME }}
         run: |
+          az resource show             --resource-group "${RESOURCE_GROUP}"             --resource-type Microsoft.Web/serverfarms             --name "${FUNCTION_PLAN_NAME}"             --query "{sku:sku.name,tier:sku.tier,location:location}"             --output json > flex-plan.json
+
+          az functionapp show             --resource-group "${RESOURCE_GROUP}"             --name "${FUNCTION_APP_NAME}"             --query "{state:state,location:location,kind:kind,identity:identity.type,config:properties.functionAppConfig}"             --output json > flex-app.json
+
+          az functionapp config appsettings list             --resource-group "${RESOURCE_GROUP}"             --name "${FUNCTION_APP_NAME}"             --output json > function-settings.json
+
           python - <<'PY'
-          from pathlib import Path
-          import zipfile
-          excluded = {".git", ".github", ".pytest_cache", "__pycache__", "tests"}
-          with zipfile.ZipFile("functionapp.zip", "w", zipfile.ZIP_DEFLATED) as archive:
-              for path in Path(".").rglob("*"):
-                  if path.is_file() and not any(part in excluded for part in path.parts) and path.name not in {"functionapp.zip", "local.settings.json"}:
-                      archive.write(path, path.as_posix())
+          import json
+
+          plan = json.load(open("flex-plan.json"))
+          app = json.load(open("flex-app.json"))
+          settings = {item["name"]: item["value"] for item in json.load(open("function-settings.json"))}
+
+          assert plan["sku"] == "FC1", plan
+          assert plan["tier"] == "FlexConsumption", plan
+          assert app["kind"] == "functionapp,linux", app
+          assert app["identity"] == "SystemAssigned", app
+          assert app["config"]["runtime"] == {"name": "python", "version": "3.12"}, app
+          assert app["config"]["scaleAndConcurrency"].get("alwaysReady") in ([], None), app
+          assert "AzureWebJobsStorage__accountName" in settings
+          assert "AzureWebJobsStorage" not in settings
+          assert "WEBSITE_CONTENTAZUREFILECONNECTIONSTRING" not in settings
+          assert "WEBSITE_CONTENTSHARE" not in settings
+          assert "WEBSITE_RUN_FROM_PACKAGE" not in settings
+          assert settings["FUNCTIONS_EXTENSION_VERSION"] == "~4"
+          assert settings["FUNCTIONS_WORKER_RUNTIME"] == "python"
+          print("Deployed Flex configuration verified.")
           PY
 
-      - name: Deploy Function application package
+      - name: Build ready-to-run Function package
+        run: |
+          python -m pip install -r requirements.txt --target .python_packages/lib/site-packages
+          rm -f "${PACKAGE_FILE}"
+          zip -r "${PACKAGE_FILE}"             function_app.py host.json requirements.txt src .python_packages             -x "*.pyc" -x "*/__pycache__/*"
+
+      - name: Deploy Function package using Flex-compatible package deployment
         uses: Azure/functions-action@v1
         with:
           app-name: ${{ vars.FUNCTION_APP_NAME }}
-          package: ./functionapp.zip
+          package: ${{ env.PACKAGE_FILE }}
+
+      - name: Verify Function App state after package deployment
+        env:
+          RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+          FUNCTION_APP_NAME: ${{ vars.FUNCTION_APP_NAME }}
+        run: |
+          state="$(az functionapp show             --resource-group "${RESOURCE_GROUP}"             --name "${FUNCTION_APP_NAME}"             --query state             --output tsv)"
+
+          if [ "${state}" != "Running" ]; then
+            echo "Function App state after package deployment: ${state}"
+            exit 1
+          fi
+
+          echo "Function App state after package deployment: ${state}"
 
       - name: Record deployment evidence
         if: always()
         run: |
-          printf '%s\\n' \\
-            "commit=${{ github.sha }}" \\
-            "run=${{ github.run_id }}" \\
-            "resource_group=${{ vars.AZURE_RESOURCE_GROUP }}" \\
-            "function_app=${{ vars.FUNCTION_APP_NAME }}" \\
-            "arm_deployment=${{ steps.arm-deploy.outcome }}" > deployment-evidence.txt
+          {
+            echo "commit=${{ github.sha }}"
+            echo "run=${{ github.run_id }}"
+            echo "resource_group=${{ vars.AZURE_RESOURCE_GROUP }}"
+            echo "function_app=${{ vars.FUNCTION_APP_NAME }}"
+            echo "hosting_plan=${{ vars.FUNCTION_PLAN_NAME }}"
+            echo "arm_deployment=${{ steps.arm-deploy.outcome }}"
+            echo "package=${{ env.PACKAGE_FILE }}"
+            echo "deployment_model=Flex Consumption package deployment"
+          } > deployment-evidence.txt
 
       - name: Upload deployment evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: backend-azure-deployment-evidence-${{ github.run_id }}
+          name: backend-flex-deployment-evidence-${{ github.run_id }}
           path: |
             arm-deployment.json
+            flex-locations.json
+            flex-python-runtimes.json
+            flex-plan.json
+            flex-app.json
+            function-settings.json
             deployment-evidence.txt
+            ${{ env.PACKAGE_FILE }}
