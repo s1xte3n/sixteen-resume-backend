@@ -10,9 +10,7 @@ The production OIDC federation was corrected and the workflow progressed beyond 
 
 The corrective implementation makes role-assignment names deterministic from resource IDs, the Function App name, and stable role identifiers. The managed-identity `reference()` remains only in the role-assignment `principalId` properties. This preserves the approved identity/RBAC model without broadening permissions or changing the API contract.
 
-Production deployment remains **BLOCKED** until the corrected template passes Azure `az deployment group validate` and the subsequent controlled production run proves ARM deployment and runtime behavior.
-
-
+The deployment Blob service dependency was also corrected to include the required `default` blob-service name.
 
 ## Implemented
 
@@ -44,7 +42,7 @@ The following remain **BLOCKED** pending authenticated production evidence:
 
 - Production GitHub environment exists.
 - Required OIDC identifiers are configured.
-- Required production variables are configured.
+- Required production variables are configured and non-empty.
 - Azure federated credential exists and matches the GitHub OIDC subject/audience.
 - Deployment identity has approved permissions.
 - East US Flex capacity is available for the actual subscription.
@@ -73,7 +71,6 @@ Requirement -> IaC -> Azure resource -> identity/RBAC -> deployment -> runtime -
 
 See infra/azure/VALIDATION.md for the complete Flex validation boundary.
 
-
 ## CI evidence — 2026-10-06
 
 Backend CI run 51 completed successfully for commit 17c31e72e130056fe1419988dab8aff4b92173f0.
@@ -92,32 +89,67 @@ Backend Tests run 51 also completed successfully.
 
 This CI result does not prove authenticated Azure provisioning, subscription-specific Flex capacity, production RBAC, production package deployment, production runtime behavior, or production cost compliance.
 
-### 2026-10-07 ARM validation correction — deployment Blob service resource ID
-
-Azure validation advanced past the role-assignment naming defect but then failed because the deployment Blob service dependsOn used resourceId('Microsoft.Storage/storageAccounts/blobServices', accountName) without the required default blob-service resource name. The correction changes this dependency to resourceId('Microsoft.Storage/storageAccounts/blobServices', accountName, 'default').
-
-This is a template-reference correction only. It does not change the deployment Storage account, private container, managed-identity authentication, RBAC scope, Function App configuration, or API contract. Production remains BLOCKED until the corrected template passes Azure validation and subsequent deployment evidence is observed.
-
 ## Phase 4 continuation — 2026-10-07
 
-### Current evidence
+### ARM validation evidence
 
-The current main ARM template was validated directly against Azure with the approved production parameters. Azure returned provisioningState: Succeeded for deployment validation in rg-sixteen-resume-prod / eastus. This supersedes the earlier ARM-template validation defects as active blockers.
+The current main ARM template was validated directly against Azure with:
 
-The production Entra federated identity credential was also recreated with:
+- resource group: rg-sixteen-resume-prod
+- location: eastus
+- deployment storage account: st16resumedeploy
+- deployment storage container: function-deployments
+- Function plan: sixteen-resume-functions
+- Function App: func-sixteen-resume
+- Cosmos account: cosmos-sixteen-resume
+- Cosmos table: VisitorCounter
+- CORS origin: https://sixteen-resume.mooo.com
 
-- issuer: https://token.actions.githubusercontent.com;
-- audience: api://AzureADTokenExchange;
-- subject: repo:s1xte3n@39813590/sixteen-resume-backend@1373839879:environment:production.
+Azure returned `provisioningState: Succeeded`.
 
-The subsequent GitHub Actions OIDC login still failed with No subscriptions found. Therefore the identity has not yet demonstrated access to the approved subscription through the production workflow.
+This closes the previously active ARM template validation defects. It does **not** prove ARM deployment, package deployment, runtime startup, API behavior, or production cost.
+
+### OIDC evidence
+
+The production Entra federated credential currently has:
+
+- issuer: https://token.actions.githubusercontent.com
+- audience: api://AzureADTokenExchange
+- subject: repo:s1xte3n@39813590/sixteen-resume-backend@1373839879:environment:production
+
+The subsequent GitHub Actions login returned:
+
+`No subscriptions found for ***.`
+
+Therefore the production deployment identity has not yet demonstrated access to the approved Azure subscription.
+
+### Deployment-storage parameter failure
+
+A subsequent validation attempt supplied:
+
+`deploymentStorageAccountName=""`
+
+Azure correctly rejected the request because the ARM parameter has a minimum length of three characters.
+
+This does **not** require another ARM template change.
+
+The approved production invocation must supply:
+
+- `deploymentStorageAccountName=st16resumedeploy`
+- `deploymentStorageContainerName=function-deployments`
+
+The workflow already passes both GitHub environment variables. The production GitHub environment therefore needs those variables populated with the approved values.
 
 ### Remaining Phase 4 blocker
 
-**BLOCKED — deployment identity authorization.** The deployment service principal must receive only the approved deployment permissions at the approved scope. The previous role-assignment attempts failed because the subscription ID used in the command was malformed/mismatched. Do not compensate with Owner, a client secret, a publish profile, or manual production deployment.
+**BLOCKED — production GitHub environment configuration and deployment identity authorization.**
 
-After the exact subscription scope and least-privilege role assignment are corrected, run the production workflow from main and capture the complete Azure execution evidence. Until then, ARM deployment, package deployment, runtime, API, persistence/concurrency, isolation, CORS, security, and cost remain unproven.
+Manual repair of production infrastructure is not authorized. Do not add Owner or Contributor merely to bypass the OIDC failure, and do not add a client secret or publish profile.
+
+After the production variables are corrected and the deployment identity has the approved least-privilege permissions, run the protected main workflow and capture the complete Azure execution evidence.
+
+Until that succeeds, ARM deployment, package deployment, runtime startup, API regression, persistence/concurrency, browser/Cosmos isolation, CORS, security, observability, and cost remain unproven.
 
 ### Evidence boundary
 
-The direct az deployment group validate result is valid ARM validation evidence, but it is not a substitute for the required GitHub OIDC production execution evidence.
+The direct `az deployment group validate` result is valid ARM validation evidence, but it is not a substitute for the required GitHub OIDC production execution evidence.
