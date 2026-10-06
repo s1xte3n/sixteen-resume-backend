@@ -212,3 +212,22 @@ The previously recorded Phase 2 CI evidence remains valid for source/local valid
 Azure validation advanced past the role-assignment naming defect but then failed because the deployment Blob service dependsOn used resourceId('Microsoft.Storage/storageAccounts/blobServices', accountName) without the required default blob-service resource name. The correction changes this dependency to resourceId('Microsoft.Storage/storageAccounts/blobServices', accountName, 'default').
 
 This is a template-reference correction only. It does not change the deployment Storage account, private container, managed-identity authentication, RBAC scope, Function App configuration, or API contract. Production remains BLOCKED until the corrected template passes Azure validation and subsequent deployment evidence is observed.
+
+## Phase 4 continuation — 2026-10-07
+
+### ARM validation correction verified
+
+Authenticated Azure CLI validation of the current main ARM template completed with provisioningState: Succeeded against rg-sixteen-resume-prod in eastus using the approved production parameters, including the dedicated deployment Storage account/container. The two template defects previously observed are therefore corrected:
+
+- role-assignment resource names no longer depend on reference();
+- the deployment Blob service dependency uses the required default child resource name.
+
+This validates template evaluation only. It does not prove GitHub OIDC execution, ARM deployment, Flex subscription capacity, runtime startup, package activation, API regression, persistence/concurrency, CORS, security, or cost.
+
+### OIDC/RBAC state
+
+The production federated credential now exists with the approved GitHub Actions issuer and api://AzureADTokenExchange audience and the production repository/environment subject. A GitHub Actions OIDC login has nevertheless not yet produced an authenticated Azure subscription context; the observed workflow failure was No subscriptions found. Deployment-identity RBAC must be corrected and then re-tested through the production workflow. No client secret, publish profile, or broad Owner/Contributor bypass is authorized.
+
+### Gate
+
+**Phase 4: BLOCKED.** A fresh successful production GitHub Actions execution remains mandatory before any production deployment or runtime verification can be marked passed.
