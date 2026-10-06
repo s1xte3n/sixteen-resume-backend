@@ -13,7 +13,7 @@
 - The workflow verifies current Flex Consumption regional availability and Python 3.12 availability before deployment.
 - ARM is validated and deployed through infra/azure/azuredeploy.json.
 - The deployed plan is verified as FC1 / FlexConsumption.
-- The Function App is verified as Linux, system-assigned identity, Python 3.12, Functions v4, zero always-ready, and identity-based runtime storage.
+- The Function App is verified as Linux, system-assigned identity, Python 3.12, Functions v4, zero always-ready, required Flex instance memory, maximum instance count 1, and identity-based runtime storage.
 - The workflow builds a ready-to-run released-package.zip.
 - Azure/functions-action@v1 performs the supported Flex package deployment path; the workflow does not directly upload a package into the deployment container.
 - The Function App state is verified after package deployment.
