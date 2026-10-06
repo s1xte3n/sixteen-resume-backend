@@ -2,7 +2,7 @@
 
 ## Phase 2 status
 
-**BLOCKED — Flex implementation is present; live Azure deployment and runtime evidence cannot be independently verified from source inspection.**
+**CONDITIONAL — local/CI validation passes; authenticated Azure deployment and runtime evidence remain pending.**
 
 ## Implemented
 
@@ -62,3 +62,22 @@ Azure acceptance requires authenticated evidence for:
 Requirement -> IaC -> Azure resource -> identity/RBAC -> deployment -> runtime -> API -> cost -> release.
 
 See infra/azure/VALIDATION.md for the complete Flex validation boundary.
+
+
+## CI evidence — 2026-10-06
+
+Backend CI run 51 completed successfully for commit 17c31e72e130056fe1419988dab8aff4b92173f0.
+
+Validation evidence included:
+
+- Python dependency installation.
+- deterministic unit tests: passed.
+- Flex ARM structural tests: passed.
+- Azurite persistence/concurrency tests: passed.
+- Azure Functions Core Tools installation: passed.
+- local Functions host startup: passed.
+- executable GET /api/visitors HTTP contract tests: passed.
+
+Backend Tests run 51 also completed successfully.
+
+This CI result does not prove authenticated Azure provisioning, subscription-specific Flex capacity, production RBAC, production package deployment, production runtime behavior, or production cost compliance.
