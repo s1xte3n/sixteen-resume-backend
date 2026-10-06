@@ -231,3 +231,40 @@ The production federated credential now exists with the approved GitHub Actions 
 ### Gate
 
 **Phase 4: BLOCKED.** A fresh successful production GitHub Actions execution remains mandatory before any production deployment or runtime verification can be marked passed.
+
+
+## Phase 4 continuation — RBAC prerequisite — 2026-10-07
+
+### Verified
+
+The current `infra/azure/azuredeploy.json` passes Azure deployment-group template validation against the approved production resource group and parameters. The earlier `reference()` resource-name defect and Blob service `resourceId()` defect are therefore resolved.
+
+### Active blocker
+
+The production GitHub Actions identity is now reaching ARM but Azure rejects the role-assignment resources because the deployment identity lacks:
+
+`Microsoft.Authorization/roleAssignments/write`
+
+Deployment identity object ID:
+
+`8d9ee8de-bc32-4744-b44a-616cafd83559`
+
+Approved resource-group scope:
+
+`/subscriptions/aab5f649-b686-4f86-95cc-aa72ae71f03b/resourceGroups/rg-sixteen-resume-prod`
+
+The ARM template must retain its managed-identity RBAC resources. Removing them or pre-provisioning them manually would weaken the IaC authority model and is not an approved workaround.
+
+### Manual prerequisite
+
+Use a narrowly constrained role-assignment delegation for the deployment service principal. Preferred built-in role: **Role Based Access Control Administrator**, scoped to the production resource group and conditioned so role-assignment writes/deletes are limited to the three approved role definition IDs already used by the template:
+
+- Storage Blob Data Owner: `b7e6dc6d-f1e8-4753-8033-0f276bb0955b`;
+- Storage Table Data Contributor: `0a9a7e1f-b9d0-4cc4-a60d-0319b160aaa3`;
+- Storage Blob Data Contributor: `ba92f5b4-2d11-453d-a403-e96b0029c9fe`.
+
+Do not grant Owner or Contributor and do not introduce long-lived credentials.
+
+### Gate
+
+**Phase 4: BLOCKED.** The prerequisite must be applied manually by an authorized Azure administrator, then the production GitHub Actions workflow must be rerun from `main`. Only that fresh execution can establish the required deployment, runtime, API, persistence, security, and cost evidence.
