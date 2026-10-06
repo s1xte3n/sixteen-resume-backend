@@ -2,7 +2,7 @@
 
 ## Status
 
-**Flex Consumption deployment workflow implemented; live production execution evidence pending Azure/GitHub environment configuration and a controlled main-branch run.**
+**Flex Consumption deployment workflow implemented; current production gate is blocked on ARM template validation and authenticated Azure deployment evidence.**
 
 ## Pipeline
 
@@ -90,6 +90,14 @@ Production deployment produces:
 - released-package.zip
 
 The evidence records the commit, workflow run, resource group, Function App, hosting plan, ARM outcome, and package deployment model.
+
+## Current production blocker
+
+The production deployment workflow reached Azure after OIDC federation was corrected, but Azure ARM validation currently fails because the ARM template used `reference()` inside role-assignment resource names. ARM does not permit `reference()` at that location.
+
+The corrective change makes every role-assignment resource name deterministic from resource identity and stable deployment inputs, while retaining `reference()` only in the role-assignment `principalId` property, where the Function App system-assigned identity is required. The Cosmos Table role-assignment name follows the same deterministic pattern.
+
+The workflow already passes `DEPLOYMENT_STORAGE_ACCOUNT_NAME` and `DEPLOYMENT_STORAGE_CONTAINER_NAME`; empty deployment-storage values must not be used for production validation.
 
 ## Remaining verification
 
