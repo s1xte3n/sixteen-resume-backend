@@ -150,9 +150,9 @@ The following evidence remains **unproven** until the fresh main workflow succee
 
 The first controlled production ARM deployment reached the Function App resource and Azure rejected `functionAppConfig.scaleAndConcurrency.instanceMemoryMB` because Flex requires an explicit instance memory value. Azure reported the supported values as `512`, `2048`, and `4096` MB.
 
-The approved template is corrected to set `instanceMemoryMB` explicitly to **512 MB**, the lowest Azure-supported value and the value consistent with the project's low-cost serverless visitor-counter workload. This is an Azure provider-required configuration value; it does not introduce an invented capacity target.
+The approved template is corrected to set `instanceMemoryMB` explicitly to **512 MB**, the lowest Azure-supported value. Azure also requires `maximumInstanceCount` to be explicitly populated; the template sets it to **1**, the lowest permitted value and the smallest active-instance ceiling consistent with the low-cost MVP. These are provider-required configuration values, not invented throughput targets.
 
-`alwaysReady` remains an empty array, so zero always-ready instances and scale-to-zero remain unchanged. No maximum instance count, HTTP concurrency, or site-update strategy has been added.
+`alwaysReady` remains an empty array, so zero always-ready instances and scale-to-zero remain unchanged. No HTTP concurrency or site-update strategy has been added.
 
 The ARM structural test now asserts the required `instanceMemoryMB: 512` value. This correction does not change the API, storage model, Cosmos model, identity model, RBAC scopes, or deployment architecture.
 

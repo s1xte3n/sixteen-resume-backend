@@ -38,7 +38,7 @@
         "functionAppConfig":{
           "deployment":{"storage":{"type":"blobContainer","value":"[concat(reference(resourceId('Microsoft.Storage/storageAccounts', parameters('deploymentStorageAccountName')), '2023-05-01').primaryEndpoints.blob, parameters('deploymentStorageContainerName'))]","authentication":{"type":"SystemAssignedIdentity"}}},
           "runtime":{"name":"python","version":"3.12"},
-          "scaleAndConcurrency":{"alwaysReady":[],"instanceMemoryMB":512}
+          "scaleAndConcurrency":{"alwaysReady":[],"instanceMemoryMB":512,"maximumInstanceCount":1}
         },
         "siteConfig":{
           "minTlsVersion":"1.2","ftpsState":"Disabled",
