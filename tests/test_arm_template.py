@@ -157,6 +157,7 @@ def test_frontend_storage_is_static_website_storage() -> None:
     )
     static_website = frontend["properties"]["staticWebsite"]
 
+    assert frontend["apiVersion"] == "2025-08-01"
     assert static_website["enabled"] is True
 
     frontend_account = next(
