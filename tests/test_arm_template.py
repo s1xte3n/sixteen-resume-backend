@@ -183,6 +183,15 @@ def test_cosmos_account_is_table_serverless_and_key_auth_disabled() -> None:
     assert properties["disableLocalAuth"] is True
 
 
+def test_function_uses_cosmos_table_endpoint() -> None:
+    template = load_template()
+    function = resources(template, "Microsoft.Web/sites")[0]
+    settings = app_settings(function)
+
+    assert "tableEndpoint" in settings["COSMOS_ENDPOINT"]
+    assert "documentEndpoint" not in settings["COSMOS_ENDPOINT"]
+
+
 def test_function_uses_python_v4_and_production_table_backend() -> None:
     template = load_template()
     function = resources(template, "Microsoft.Web/sites")[0]
