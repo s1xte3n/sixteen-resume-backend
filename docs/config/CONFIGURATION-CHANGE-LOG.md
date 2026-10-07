@@ -7,3 +7,5 @@
 | 2026-10-07 | backend | Confirmed OIDC identifiers are protected production environment variables | Align Phase 5 model with backend deployment workflow | No credential model change |
 | 2026-10-07 | backend | Corrected OIDC verification boundary | Backend verification validates the backend Entra application/service principal; frontend UAMI verification belongs to the frontend repository | No architecture/API change |
 | 2026-10-07 | backend | Recorded live frontend UAMI provisioning blocker | `sixteen-resume-frontend-github` was not found in the approved production resource group | Phase 5 gate remains blocked pending Azure provisioning |
+
+| 2026-10-07 | backend | Recorded frontend UAMI recreation and corrected production federation | Azure-side identity was recreated under the approved identity model | Frontend client-ID synchronization and Storage RBAC remain verification blockers; no API/runtime change |
