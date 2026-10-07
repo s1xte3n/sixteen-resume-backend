@@ -224,8 +224,8 @@ jobs:
           assert app["config"]["scaleAndConcurrency"].get("alwaysReady") in ([], None), app
           assert app["config"]["scaleAndConcurrency"].get("instanceMemoryMB") == 512, app
           assert app["config"]["scaleAndConcurrency"].get("maximumInstanceCount") == 1, app
+          assert settings.get("AzureWebJobsStorage") == ""
           assert "AzureWebJobsStorage__accountName" in settings
-          assert "AzureWebJobsStorage" not in settings
           assert "WEBSITE_CONTENTAZUREFILECONNECTIONSTRING" not in settings
           assert "WEBSITE_CONTENTSHARE" not in settings
           assert "WEBSITE_RUN_FROM_PACKAGE" not in settings
