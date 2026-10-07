@@ -246,19 +246,43 @@ jobs:
           app-name: ${{ vars.FUNCTION_APP_NAME }}
           package: ${{ env.PACKAGE_FILE }}
 
-      - name: Verify Function App state after package deployment
+      - name: Wait for Flex app restart after infrastructure deployment
+        run: sleep 30
+
+      - name: Deploy Function package using Flex-compatible package deployment
+        uses: Azure/functions-action@v1
+        with:
+          app-name: ${{ vars.FUNCTION_APP_NAME }}
+          package: ${{ env.PACKAGE_FILE }}
+
+      - name: Verify Function App reaches Running state
         env:
           RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
           FUNCTION_APP_NAME: ${{ vars.FUNCTION_APP_NAME }}
         run: |
-          state="$(az functionapp show             --resource-group "${RESOURCE_GROUP}"             --name "${FUNCTION_APP_NAME}"             --query state             --output tsv)"
+          for attempt in {1..12}; do
+            state="$(az functionapp show \
+              --resource-group "${RESOURCE_GROUP}" \
+              --name "${FUNCTION_APP_NAME}" \
+              --query state \
+              --output tsv)"
 
-          if [ "${state}" != "Running" ]; then
-            echo "Function App state after package deployment: ${state}"
-            exit 1
-          fi
+            if [ "${state}" = "Running" ]; then
+              echo "Function App state after package deployment: ${state}"
+              exit 0
+            fi
 
-          echo "Function App state after package deployment: ${state}"
+            echo "Function App state attempt ${attempt}/12: ${state:-<empty>}"
+            sleep 10
+          done
+
+          echo "Function App did not reach Running state within the verification window."
+          az functionapp show \
+            --resource-group "${RESOURCE_GROUP}" \
+            --name "${FUNCTION_APP_NAME}" \
+            --query "{state:state,kind:kind,location:location,serverFarmId:serverFarmId}" \
+            --output json
+          exit 1
 
       - name: Record deployment evidence
         if: always()
