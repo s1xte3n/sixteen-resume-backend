@@ -53,7 +53,7 @@ Frontend verification belongs to:
 
 The approved UAMI `sixteen-resume-frontend-github` now exists in `rg-sixteen-resume-prod` with client ID `2d19e037-cc57-462c-a950-862f9b8a80e6` and principal ID `200b60d9-b05a-4733-81f4-1053834de5c3`. Its production federated credential has been corrected to the exact approved subject and audience.
 
-The frontend verifier must be run only after the frontend UAMI exists, its GitHub federated credential exists, and its Storage Blob Data Contributor assignment is present. The federated credential subject must be the standard GitHub environment subject `repo:s1xte3n/sixteen-resume-frontend:environment:production`; repository-owner/repository-ID variants are not valid for this verification path.
+The frontend verifier must be run only after the frontend UAMI exists, its GitHub federated credential exists, and its Storage Blob Data Contributor assignment is present. The federated credential subject must be the immutable GitHub production subject `repo:s1xte3n@39813590/sixteen-resume-frontend@1373840239:environment:production`; repository-owner/repository-ID variants are not valid for this verification path.
 
 ## Controlled execution order
 
@@ -99,7 +99,7 @@ This verification artifact records live evidence only. It does not redefine the 
 - Frontend UAMI: `sixteen-resume-frontend-github` exists in `rg-sixteen-resume-prod`.
 - Frontend client ID: `2d19e037-cc57-462c-a950-862f9b8a80e6`.
 - Frontend principal ID: `200b60d9-b05a-4733-81f4-1053834de5c3`.
-- Federated credential subject: `repo:s1xte3n/sixteen-resume-frontend:environment:production`.
+- Federated credential subject: `repo:s1xte3n@39813590/sixteen-resume-frontend@1373840239:environment:production`.
 - Frontend GitHub `AZURE_FRONTEND_IDENTITY_NAME` is configured.
 - Storage RBAC remains unverified because local `az role assignment` commands return `MissingSubscription`.
 - Phase 5 remains NOT PASSED until protected client-ID synchronization and Storage RBAC are proven by the controlled frontend workflow.
@@ -118,3 +118,19 @@ The backend deployment identity already has the observed backend subject:
 Both repository verification workflows now derive the expected subject from GitHub owner/repository IDs rather than assuming the shorter `repo:owner/repo:environment:production` form. This aligns verification with the actual assertion presented to Azure without changing the approved OIDC architecture.
 
 The frontend Azure federated credential remains the only identified OIDC mismatch and must be recreated with the exact observed frontend subject before the next live run.
+
+## 2026-10-07 controlled frontend OIDC verification correction
+
+Live evidence now confirms the frontend user-assigned managed identity exists and the protected GitHub production variables have been populated:
+
+- UAMI: `sixteen-resume-frontend-github`
+- Client ID: `2d19e037-cc57-462c-a950-862f9b8a80e6`
+- Principal ID: `200b60d9-b05a-4733-81f4-1053834de5c3`
+- Federated credential issuer: `https://token.actions.githubusercontent.com`
+- Federated credential subject: `repo:s1xte3n@39813590/sixteen-resume-frontend@1373840239:environment:production` was superseded by the live immutable subject `repo:s1xte3n@39813590/sixteen-resume-frontend@1373840239:environment:production`.
+- Federated credential audience: `api://AzureADTokenExchange`
+- Frontend production `AZURE_CLIENT_ID`: `2d19e037-cc57-462c-a950-862f9b8a80e6`
+
+The controlled workflow subsequently demonstrated that the frontend identity itself can authenticate only after Azure federation matches the exact live subject. Storage RBAC verification must use data-plane operations; a `Storage Blob Data Contributor` assignment does not grant `Microsoft.Storage/storageAccounts/read`, so `az storage account show` is not an appropriate least-privilege verification step.
+
+Phase 5 remains **NOT PASSED** until a fresh frontend controlled workflow run succeeds from the corrected workflow revision and the remaining production edge/CORS/cost gates are independently evidenced.
