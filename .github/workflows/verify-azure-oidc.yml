@@ -58,10 +58,10 @@ jobs:
         shell: bash
         env:
           AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_REPOSITORY: ${{ github.repository }}\n          GITHUB_REPOSITORY_OWNER: ${{ github.repository_owner }}\n          GITHUB_REPOSITORY_OWNER_ID: ${{ github.repository_owner_id }}\n          GITHUB_REPOSITORY_NAME: ${{ github.event.repository.name }}\n          GITHUB_REPOSITORY_ID: ${{ github.repository_id }}
         run: |
           set -euo pipefail
-          expected_subject="repo:${GITHUB_REPOSITORY}:environment:production"
+          # GitHub currently presents the immutable production subject in this environment as\n          # repo:<owner>@<owner-id>/<repo>@<repo-id>:environment:production.\n          expected_subject="repo:${GITHUB_REPOSITORY_OWNER}@${GITHUB_REPOSITORY_OWNER_ID}/${GITHUB_REPOSITORY_NAME}@${GITHUB_REPOSITORY_ID}:environment:production"
           credentials_json="$(az ad app federated-credential list --id "${AZURE_CLIENT_ID}" --output json)"
           match_count="$(jq --arg subject "${expected_subject}" '[.[] | select(.issuer == "https://token.actions.githubusercontent.com" and .subject == $subject and (.audiences | index("api://AzureADTokenExchange")))] | length' <<<"${credentials_json}")"
           [[ "${match_count}" -eq 1 ]] || { echo "::error::Expected exactly one matching GitHub Actions federated credential."; exit 1; }
