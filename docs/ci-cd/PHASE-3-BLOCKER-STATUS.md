@@ -2,89 +2,119 @@
 
 ## Scope
 
-This document records the currently observed Phase 3 production deployment blockers. No API, hosting, storage, OIDC, or runtime architecture change is introduced.
+This document records the current Phase 3 production blockers. The remediation is limited to Azure RBAC; no API, hosting, storage, OIDC, or runtime architecture change is introduced.
 
 ## Backend — deployment identity lacks RBAC management permission
 
-Fresh production ARM validation reached the approved template but failed because the GitHub OIDC deployment identity could not create the template's required `Microsoft.Authorization/roleAssignments` resources.
+Fresh production ARM validation reached the approved template and failed because the GitHub OIDC deployment identity could not create the template's required `Microsoft.Authorization/roleAssignments` resources.
 
-Observed permission failure: `Microsoft.Authorization/roleAssignments/write`.
+Observed action:
+`Microsoft.Authorization/roleAssignments/write`
+
+The failing deployment principal is the backend GitHub Actions OIDC service principal.
 
 ### Required correction
 
-The backend GitHub OIDC service principal must retain its existing deployment permissions and additionally have:
+Assign **User Access Administrator** to the backend GitHub Actions service principal at:
 
-- **User Access Administrator**
-- Scope: `/subscriptions/<subscription-id>/resourceGroups/rg-sixteen-resume-prod`
+`/subscriptions/<subscription-id>/resourceGroups/rg-sixteen-resume-prod`
 
-This is the minimum built-in role needed for the deployment identity to create the ARM role assignments already defined in the approved template. Do **not** grant Owner or subscription-wide Contributor as a workaround.
+This is the narrow built-in role required for the deployment identity to create the role assignments already declared by the approved ARM template. Do not grant Owner or subscription-wide Contributor as a workaround.
 
-The ARM template remains responsible for assigning the Function App managed identity its existing narrow data-plane roles. The template is not redesigned to bypass RBAC.
+The ARM template remains responsible for assigning the Function App managed identity its existing narrow storage, queue, and Cosmos Table permissions.
 
 ### Command-line correction
 
-Run as an administrator already authorized to assign RBAC at the resource-group scope:
+Run these commands as an administrator whose identity already has `Microsoft.Authorization/roleAssignments/write` at the resource-group scope:
 
 ```bash
-SUBSCRIPTION_ID="aab5b649-b686-4f86-95cc-aa72ae71f03b"
+SUBSCRIPTION_ID="aab5f649-b686-4f86-95cc-aa72ae71f03b"
 RESOURCE_GROUP="rg-sixteen-resume-prod"
-BACKEND_DEPLOYMENT_SP_OBJECT_ID="<backend-github-service-principal-object-id>"
 UAA_ROLE_ID="f1a07417-d97a-45cb-824c-7a7467783830"
 
 az account set --subscription "$SUBSCRIPTION_ID"
 
-az role assignment create \
-  --assignee-object-id "$BACKEND_DEPLOYMENT_SP_OBJECT_ID" \
-  --assignee-principal-type ServicePrincipal \
-  --role "$UAA_ROLE_ID" \
-  --scope "/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP"
+BACKEND_SP_OBJECT_ID="$(
+  az ad sp list     --display-name "sixteen-resume-backend-github-actions"     --query "[0].id"     --output tsv
+)"
+
+test -n "$BACKEND_SP_OBJECT_ID"
+
+az role assignment create   --assignee-object-id "$BACKEND_SP_OBJECT_ID"   --assignee-principal-type ServicePrincipal   --role "$UAA_ROLE_ID"   --scope "/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP"
 ```
 
-Verify the assignment before rerunning production.
+If `az role assignment create` reports the previously observed CLI subscription error, use the ARM REST API instead; this still requires the caller to possess `Microsoft.Authorization/roleAssignments/write`:
+
+```bash
+ROLE_ASSIGNMENT_ID="$(python - <<'PY'
+import uuid
+print(uuid.uuid4())
+PY
+)"
+
+az rest   --method put   --url "https://management.azure.com/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.Authorization/roleAssignments/$ROLE_ASSIGNMENT_ID?api-version=2022-04-01"   --body "{
+    \"properties\": {
+      \"roleDefinitionId\": \"/subscriptions/$SUBSCRIPTION_ID/providers/Microsoft.Authorization/roleDefinitions/$UAA_ROLE_ID\",
+      \"principalId\": \"$BACKEND_SP_OBJECT_ID\",
+      \"principalType\": \"ServicePrincipal\"
+    }
+  }"
+```
+
+Verify:
+
+```bash
+az role assignment list   --assignee "$BACKEND_SP_OBJECT_ID"   --scope "/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP"   --role "$UAA_ROLE_ID"   --output table
+```
 
 ## Frontend — storage data-plane permission missing
 
-The frontend production workflow successfully reached the Azure storage deployment step but failed because its OIDC identity was not authorized for Microsoft Entra blob data access.
+The frontend production workflow successfully authenticated to Azure and reached the blob upload step. The upload failed because its OIDC identity did not have Microsoft Entra blob data-plane write permission.
 
 Required permission:
 
 - **Storage Blob Data Contributor**
-- Scope: production frontend storage account only: `st16resumeweb`
+- Scope: `st16resumeweb` only
+- Authentication remains `--auth-mode login`
 
-The existing workflow already uses `--auth-mode login`; no switch to storage keys, SAS, connection strings, or shared-key authentication is permitted.
+No storage key, SAS token, connection string, client secret, or publish profile is introduced.
 
 ### Command-line correction
 
-Run as an administrator authorized to assign the storage data-plane role:
+Use the frontend production OIDC service principal object ID:
 
 ```bash
-SUBSCRIPTION_ID="aab5b649-b686-4f86-95cc-aa72ae71f03b"
+SUBSCRIPTION_ID="aab5f649-b686-4f86-95cc-aa72ae71f03b"
 RESOURCE_GROUP="rg-sixteen-resume-prod"
 FRONTEND_STORAGE_ACCOUNT="st16resumeweb"
-FRONTEND_DEPLOYMENT_PRINCIPAL_OBJECT_ID="<frontend-oidc-principal-object-id>"
 
-az account set --subscription "$SUBSCRIPTION_ID"
+FRONTEND_SP_OBJECT_ID="$(
+  az ad sp list     --display-name "sixteen-resume-frontend-github-actions"     --query "[0].id"     --output tsv
+)"
+
+test -n "$FRONTEND_SP_OBJECT_ID"
 
 STORAGE_SCOPE="/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.Storage/storageAccounts/$FRONTEND_STORAGE_ACCOUNT"
 
-az role assignment create \
-  --assignee-object-id "$FRONTEND_DEPLOYMENT_PRINCIPAL_OBJECT_ID" \
-  --assignee-principal-type ServicePrincipal \
-  --role "Storage Blob Data Contributor" \
-  --scope "$STORAGE_SCOPE"
+az role assignment create   --assignee-object-id "$FRONTEND_SP_OBJECT_ID"   --assignee-principal-type ServicePrincipal   --role "Storage Blob Data Contributor"   --scope "$STORAGE_SCOPE"
 ```
 
-Verify the assignment before rerunning production.
+Verify:
+
+```bash
+az role assignment list   --assignee "$FRONTEND_SP_OBJECT_ID"   --scope "$STORAGE_SCOPE"   --role "Storage Blob Data Contributor"   --output table
+```
 
 ## Verification gate
 
 Phase 3 remains **BLOCKED** until fresh production evidence proves:
 
 1. Backend OIDC authentication succeeds.
-2. Backend ARM validation/deployment can create its required role assignments.
+2. Backend ARM validation/deployment creates the approved role assignments.
 3. Backend Function deployment reaches the existing HTTPS `GET /api/visitors` readiness check.
 4. Frontend OIDC authentication succeeds.
-5. Frontend storage upload succeeds using Microsoft Entra authorization.
-6. No storage keys, SAS tokens, client secrets, or publish profiles are introduced.
+5. Frontend upload to `$web` succeeds with `--auth-mode login`.
+6. Public HTTPS verification succeeds.
+7. No storage keys, SAS tokens, client secrets, or publish profiles are used.
 
-These are RBAC corrections only; no product or architecture scope is changed.
+This remediation changes only Azure RBAC assignments required by the existing implementation.
