@@ -291,3 +291,17 @@ The ARM template therefore removes `FUNCTIONS_WORKER_RUNTIME` from `siteConfig.a
 The ARM structural test now explicitly asserts that `FUNCTIONS_WORKER_RUNTIME` is absent, preventing regression to the rejected Flex configuration.
 
 **Current gate: BLOCKED.** CI must validate the correction, followed by a fresh production GitHub Actions run from `main`. The failed deployment must not be manually repaired.
+
+
+## Phase 4 continuation — ARM provider corrections — 2026-10-07
+
+The latest controlled deployment exposed two provider-level defects after the earlier ARM validation issues were resolved:
+
+1. **Cosmos Table RBAC API version** — the Microsoft.DocumentDB/databaseAccounts/tableRoleAssignments resource used API version 2023-04-15, which Azure rejected for Table RBAC. It is now pinned to the provider-supported 2026-03-15 API version. The table-scoped role definition and VisitorCounter scope are unchanged.
+2. **Frontend static website configuration** — the frontend Storage account attempted to enable static website hosting while allowBlobPublicAccess was false. Azure rejected the static website configuration. The frontend static website account now explicitly permits the anonymous public blob access required by Azure Storage static website hosting. This applies only to the public frontend Storage account; the runtime and private deployment Storage accounts continue to disable shared-key access and private Blob access.
+
+The backend CI verification step was also corrected to require FUNCTIONS_WORKER_RUNTIME to be absent, matching the Flex functionAppConfig.runtime model already enforced by the ARM template.
+
+No API, Cosmos authentication model, managed-identity model, private deployment container, Y1 path, client secret, publish profile, or unrelated frontend implementation was introduced.
+
+**Phase 4 gate: BLOCKED.** These source/IaC corrections require CI and a fresh production GitHub Actions deployment from main before any production PASS can be recorded.

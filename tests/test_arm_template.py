@@ -158,6 +158,13 @@ def test_frontend_storage_is_static_website_storage() -> None:
     static_website = frontend["properties"]["staticWebsite"]
 
     assert static_website["enabled"] is True
+
+    frontend_account = next(
+        resource
+        for resource in resources(template, "Microsoft.Storage/storageAccounts")
+        if "frontendStorageAccountName" in resource["name"]
+    )
+    assert frontend_account["properties"]["allowBlobPublicAccess"] is True
     assert static_website["indexDocument"] == "index.html"
     assert static_website["errorDocument404Path"] == "404.html"
 
