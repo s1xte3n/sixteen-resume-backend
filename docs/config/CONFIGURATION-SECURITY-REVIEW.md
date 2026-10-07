@@ -41,6 +41,11 @@ No blocker is silently resolved. A configuration gate remains open until live ev
 
 ## Current OIDC correction — 2026-10-07
 
+### Controlled verification correction
+
+The frontend verification workflow had been constructing the federated-credential subject with GitHub owner/repository IDs. The required subject for this protected environment is `repo:s1xte3n/sixteen-resume-frontend:environment:production`. The workflow is corrected on the frontend branch `fix/phase5-oidc-subject`. The existing malformed Azure federated credential must be replaced with the corrected subject before verification can pass.
+
+
 - **Backend client ID:** current reported value is `4e6b194b-4fd7-4d6f-8972-7c1a8d21eb8d`; the previously recorded `e3f56077-0aae-4a90-bde3-d0c0ef2a35e0` is superseded.
 - **Backend live verification:** pending. The local `az identity show` check was invalid for the backend because the approved backend deployment identity is an Entra application/service principal, not a user-assigned managed identity.
 - **Frontend live verification:** blocked because `AZURE_FRONTEND_IDENTITY_NAME` is missing from the GitHub `production` environment and `sixteen-resume-frontend-github` is absent from Azure at the tested resource-group scope.

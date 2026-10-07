@@ -154,28 +154,10 @@ The Phase 5 gate remains **NOT PASSED** until the controlled workflow is execute
 
 The local `az identity show` commands against `sixteen-resume-backend-github` and `sixteen-resume-frontend-github` must not be interpreted symmetrically: the approved backend deployment identity is an Entra application/service principal; the frontend deployment identity is the approved user-assigned managed identity. No API, application, persistence, or contract change is introduced.
 
-## Phase 5 live OIDC correction — 2026-10-07
+## Phase 5 controlled frontend OIDC correction — 2026-10-07
 
-| Artifact | Status | Evidence / change |
+| Artifact | Status | Change |
 |---|---|---|
-| `docs/config/ENVIRONMENT-VARIABLES.md` | Updated | Records frontend UAMI client/principal IDs and current RBAC verification blocker. |
-| `docs/config/OIDC-AZURE-LIVE-VERIFICATION.md` | Updated | Separates corrected frontend identity/federation from remaining client-ID/RBAC evidence. |
-| `docs/config/CONFIGURATION-SECURITY-REVIEW.md` | Updated | Frontend UAMI provisioning moved from BLOCKER to PASS; client-ID/RBAC remain open. |
-| `docs/config/CONFIGURATION-CHANGE-LOG.md` | Updated | Records the live identity correction without changing architecture or API behavior. |
-| Phase 5 gate | **NOT PASSED** | Controlled frontend OIDC workflow has not yet proven the synchronized client ID and Storage RBAC. |
-
-
-
-## Phase 5 live OIDC correction — 2026-10-07
-
-The frontend controlled run exposed the live GitHub OIDC subject format used by this account. The observed immutable production subject is:
-
-`repo:s1xte3n@39813590/sixteen-resume-frontend@1373840239:environment:production`
-
-The backend deployment identity already has the observed backend subject:
-
-`repo:s1xte3n@39813590/sixteen-resume-backend@1373839879:environment:production`
-
-Both repository verification workflows now derive the expected subject from GitHub owner/repository IDs rather than assuming the shorter `repo:owner/repo:environment:production` form. This aligns verification with the actual assertion presented to Azure without changing the approved OIDC architecture.
-
-The frontend Azure federated credential remains the only identified OIDC mismatch and must be recreated with the exact observed frontend subject before the next live run.
+| `.github/workflows/verify-azure-oidc.yml` in `s1xte3n/sixteen-resume-frontend` | Corrected on `fix/phase5-oidc-subject` | Federated-credential subject now uses the standard GitHub environment subject `repo:s1xte3n/sixteen-resume-frontend:environment:production`. |
+| Frontend UAMI configuration | Provisioned locally, live verification pending | UAMI `sixteen-resume-frontend-github` has client ID `2d19e037-cc57-462c-a950-862f9b8a80e6`; protected GitHub production variables still require completion. |
+| Phase 5 gate | **NOT PASSED** | Live federated credential replacement, Storage RBAC verification, and successful repository-specific OIDC workflow execution remain required. |
