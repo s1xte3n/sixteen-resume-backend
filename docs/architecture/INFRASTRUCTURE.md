@@ -31,5 +31,5 @@
 - Backend deployment RBAC is scoped to the production resource group: Contributor for resource deployment plus User Access Administrator for the ARM-declared managed-identity role assignments. Owner is not used.
 - The Flex ARM site resource is pinned to `Microsoft.Web/sites@2025-03-01` to avoid the current ARM template-schema validation failure encountered with the previous site API version.
 - The Function App production Cosmos Table client explicitly uses the Function App system-assigned managed identity rather than the broader DefaultAzureCredential chain. The Cosmos Table audience remains `https://cosmos.azure.com`.
-- The deployment workflow now fails immediately when the Cosmos Table data-plane role assignment is not visible for the current Function App identity, instead of continuing to an ambiguous HTTP smoke-test failure.
+- The deployment workflow now uses the `2026-03-15` Cosmos Table RBAC API consistently for provisioning and verification and fails immediately when the data-plane role assignment is not visible for the current Function App identity, instead of continuing to an ambiguous HTTP smoke-test failure.
 - The public frontend edge remains a separate Phase 3 feasibility blocker; no backend API or data architecture change is introduced.
