@@ -14,6 +14,12 @@ This evidence record deliberately does not infer Azure deployment success from s
 4. The approved ARM template currently provisions the Azure core resources but intentionally does not provision the unresolved HTTPS/CDN edge service.
 5. The frontend JavaScript calls `/api/visitors` on the browser's current origin. A live end-to-end visitor-counter verification therefore requires the approved public edge/routing configuration to make that API path reachable from the deployed frontend.
 
+## Latest deployment-remediation evidence
+
+The ARM validation path exposed two template-contract issues during deployment verification: deployment-storage child-resource IDs required the complete storage hierarchy, and the Cosmos DB for Table role assignment scope was initially emitted at the table-resource level. The template now uses the Cosmos account resource as the role-assignment scope while retaining the Table data-plane role definition. The corresponding regression test now enforces that supported provider contract.
+
+The current live deployment remains blocked if the deployment principal cannot perform `Microsoft.Authorization/roleAssignments/write`; that is a control-plane permission prerequisite and is not solved by weakening the ARM RBAC model.
+
 ## Source-controlled implementation evidence
 
 | Item | Source evidence | Live verification |
@@ -24,9 +30,9 @@ This evidence record deliberately does not infer Azure deployment success from s
 | Cosmos DB account | ARM `Microsoft.DocumentDB/databaseAccounts`, Table API + serverless | **BLOCKED** |
 | Cosmos Table | ARM `databaseAccounts/tables`, default `VisitorCounter` | **BLOCKED** |
 | Function App | ARM Linux Function App, Python 3.12 | **BLOCKED** |
-| Linux Consumption plan | ARM `Microsoft.Web/serverfarms`, SKU `Y1` / Dynamic | **BLOCKED** |
+| Linux Flex Consumption plan | ARM `Microsoft.Web/serverfarms`, SKU `FC1` / FlexConsumption | **BLOCKED** |
 | Managed identity | ARM Function App `SystemAssigned` identity | **BLOCKED** |
-| Cosmos RBAC | ARM table-scoped `tableRoleAssignments` using Function principal ID | **BLOCKED** |
+| Cosmos RBAC | ARM `tableRoleAssignments` uses the Cosmos account resource as assignment scope with the Table data-plane role and Function principal ID | **BLOCKED** |
 | Application settings | ARM Function App `siteConfig.appSettings` | **BLOCKED** |
 | CORS | ARM Function App CORS restricted to `corsAllowedOrigin` | **BLOCKED** |
 | Application Insights/logging | No independently verified production telemetry resource/runtime evidence available | **BLOCKED** |
