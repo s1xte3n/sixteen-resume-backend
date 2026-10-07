@@ -1,26 +1,45 @@
 openapi: 3.0.3
 info:
-  title: Sixteen Resume Visitor API
-  version: 1.0.0
-  description: Executable Phase 7.1 visitor-counter contract.
+  title: Azure Cloud Resume Visitor Counter API
+  version: 1.1.0
+  description: |
+    Canonical Phase 4 contract for the public visitor counter.
+    The approved visitor operation is GET /api/visitors.
 servers:
-  - url: http://localhost:7071
+  - url: https://api.example.invalid
+    description: Documentation placeholder; production hostname is deployment configuration.
 paths:
   /api/visitors:
     get:
-      operationId: getVisitors
-      summary: Increment and return the visitor count
+      operationId: getVisitorCount
+      summary: Perform the approved visitor-count operation
+      description: |
+        Performs one non-idempotent visitor-counter operation and returns
+        the resulting persisted count after successful commit.
       parameters:
-        - in: header
-          name: X-Request-ID
+        - name: X-Request-ID
+          in: header
           required: false
+          description: Optional UUID v4 correlation identifier.
           schema:
             type: string
             format: uuid
-          description: Optional UUID v4 correlation ID.
       responses:
         '200':
-          description: Visitor count incremented successfully.
+          description: Counter operation committed successfully.
+          headers:
+            X-Request-ID:
+              description: UUID v4 correlation identifier.
+              required: true
+              schema:
+                type: string
+                format: uuid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VisitorCountResponse'
+        '400':
+          description: Invalid request, unsupported query, unsupported body, or invalid X-Request-ID.
           headers:
             X-Request-ID:
               schema:
@@ -29,65 +48,107 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/VisitorSuccess'
-        '400':
-          description: Invalid request ID, query parameters, or request body.
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Platform/runtime rate limiting.
+          headers:
+            X-Request-ID:
+              schema:
+                type: string
+                format: uuid
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-        '415':
-          description: Unsupported Content-Type.
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Unexpected or internal failure.
+          headers:
+            X-Request-ID:
+              schema:
+                type: string
+                format: uuid
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
+                $ref: '#/components/schemas/ErrorResponse'
         '503':
-          description: Visitor counter dependency unavailable.
+          description: Required dependency unavailable.
+          headers:
+            X-Request-ID:
+              schema:
+                type: string
+                format: uuid
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
+                $ref: '#/components/schemas/ErrorResponse'
         '504':
-          description: Visitor counter dependency timeout.
+          description: Required dependency timed out; outcome may be unknown.
+          headers:
+            X-Request-ID:
+              schema:
+                type: string
+                format: uuid
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-    post:
-      operationId: unsupportedPost
-      summary: Explicitly rejected method
-      responses:
-        '405':
-          description: Only GET is supported.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
+                $ref: '#/components/schemas/ErrorResponse'
+      security: []
+      x-unsupported-method-response:
+        status: 405
+        code: METHOD_NOT_ALLOWED
+        description: Methods other than GET are outside the operation contract and must not mutate state.
+      x-requirements:
+        - REQ-AZ-007
+        - REQ-AZ-008
+        - REQ-AZ-009
+        - REQ-AZ-010
+        - REQ-AZ-SEC-002
+        - REQ-AZ-SEC-003
 components:
   schemas:
-    VisitorSuccess:
+    VisitorCountResponse:
       type: object
-      required: [count]
       additionalProperties: false
+      required:
+        - count
       properties:
         count:
           type: integer
-          minimum: 1
-    ErrorEnvelope:
+          minimum: 0
+    ErrorResponse:
       type: object
-      required: [error]
       additionalProperties: false
+      required:
+        - error
       properties:
         error:
           type: object
-          required: [code, message, requestId]
           additionalProperties: false
+          required:
+            - code
+            - message
+            - requestId
           properties:
             code:
               type: string
+              pattern: '^[A-Z][A-Z0-9_]{2,63}$'
             message:
               type: string
+              minLength: 1
+              maxLength: 256
             requestId:
               type: string
               format: uuid
+            details:
+              type: object
+              additionalProperties: false
+              properties:
+                timestamp:
+                  type: string
+                  format: date-time
+x-security:
+  browserToCosmos: prohibited
+  productionCorsOrigin: final-approved-resume-origin
+  endUserAuthentication: none
+  credentialsInBrowser: prohibited
