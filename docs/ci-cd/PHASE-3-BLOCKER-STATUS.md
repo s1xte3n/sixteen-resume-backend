@@ -118,3 +118,20 @@ Phase 3 remains **BLOCKED** until fresh production evidence proves:
 7. No storage keys, SAS tokens, client secrets, or publish profiles are used.
 
 This remediation changes only Azure RBAC assignments required by the existing implementation.
+
+
+## Phase 3 blocker correction — Cosmos Table endpoint — 2026-10-07
+
+The deployed Function App was configured with the Cosmos DB **document endpoint** while the visitor counter uses the Azure Tables SDK against the Cosmos DB Table API. This caused the production visitor endpoint to return `503 DEPENDENCY_UNAVAILABLE` and intermittently time out.
+
+The backend ARM template now wires `COSMOS_ENDPOINT` from the Cosmos account's `tableEndpoint` property and aligns the native Cosmos Table RBAC resource API version with the documented `2023-04-15` contract.
+
+The backend deployment workflow now verifies, before HTTP readiness, that:
+
+- the current Function App system-assigned identity owns exactly one Cosmos DB Built-in Data Contributor Table role assignment at the Cosmos account scope;
+- the Cosmos account exposes a distinct Table endpoint;
+- the production runtime is therefore targeting the Table API rather than the NoSQL document endpoint.
+
+No frontend application code, API contract, browser/Cosmos boundary, or authentication model changed.
+
+**Phase 3 blocker status:** backend Cosmos endpoint wiring corrected; fresh production deployment and HTTP/persistence evidence required before the blocker can be marked resolved.
