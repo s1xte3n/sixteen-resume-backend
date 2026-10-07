@@ -1,11 +1,11 @@
 # Architecture
 
 ## Status
-Phase 3 architecture is implementation-aligned. Two production blockers remain: backend CI workload-identity authorization and public frontend HTTPS ingress.
+**Phase 3 blocker correction in progress.** The application/data architecture is frozen, but the production edge architecture is not currently feasible under the hard R100/month recurring Azure/cloud ceiling. Backend OIDC/RBAC identity alignment is also not yet proven for the latest recreated service principal.
 
 ## System
 - Frontend: Azure Storage static website `st16resumeweb`.
-- Public frontend ingress: Azure Front Door Standard/Premium with custom HTTPS domain `sixteen-resume.mooo.com`.
+- Public frontend ingress: **approved capability only** — Azure-managed HTTPS/CDN edge is required, but no production SKU is currently approved because Azure Front Door Standard conflicts with the R100/month ceiling.
 - API: Azure Functions Flex Consumption, Linux, Python 3.12, `func-sixteen-resume`.
 - Function host storage: `st16resumefunc`.
 - Function deployment storage: `st16resumedeploy/function-deployments`.
@@ -15,6 +15,10 @@ Phase 3 architecture is implementation-aligned. Two production blockers remain: 
 ## Required flows
 Browser -> HTTPS Front Door -> Storage static website.
 Browser -> HTTPS Function API -> Cosmos Table.
+
+## Phase 3 Feasibility Gate
+
+The frontend edge must not be considered implementation-ready until the selected delivery service simultaneously satisfies Azure Storage static website origin compatibility, public-hostname HTTPS, current service lifecycle, source-controlled provisioning, and the hard R100/month recurring Azure/cloud ceiling. The temporary Front Door resource is diagnostic only.
 
 ## Security boundaries
 - Public browser traffic terminates at Front Door over HTTPS.
