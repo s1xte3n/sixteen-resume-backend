@@ -1,41 +1,34 @@
 # Phase 3 Gate Remediation
 
-## Current Phase 3 blockers
+## Current Phase 3 blocker
 
-1. **Backend OIDC client binding is stale.** The backend GitHub Actions app registration was recreated with client ID `e3f56077-0aae-4a90-bde3-d0c0ef2a35e0`, but production run #153 still receives `AADSTS700016`. The workflow already presents the correct immutable subject, so the remaining failure is the protected GitHub `production/AZURE_CLIENT_ID` value still referencing the deleted application.
-2. **Backend deployment authorization must be complete.** The recreated backend service principal has User Access Administrator at the resource-group scope, but it also needs the approved deployment role at that scope. User Access Administrator alone is not the backend deployment role.
-3. **Frontend OIDC is resolved.** Frontend production run #33 authenticated successfully with OIDC and uploaded the three static assets using Microsoft Entra authorization.
-4. **Frontend public HTTPS routing is unresolved.** Run #33 fails only at `https://sixteen-resume.mooo.com/` with curl error 28 after Storage upload succeeds. This is a DNS/HTTPS delivery-layer blocker, not a frontend source or OIDC defect.
+The Azure infrastructure and GitHub OIDC authorization blockers have been remediated. The remaining backend blocker is **Flex Consumption runtime readiness**: infrastructure validation/deployment succeeds and the Function App reports the expected Flex configuration, but the production `GET /api/visitors` probe returns HTTP 503 during post-package verification.
 
-## Required remediation
+The application already maps dependency failures to HTTP 503, so the verification must distinguish a normal platform cold start from an application dependency/RBAC failure.
 
-### Backend GitHub environment
+## Remediation applied
 
-Set the backend `production` environment secret `AZURE_CLIENT_ID` to `e3f56077-0aae-4a90-bde3-d0c0ef2a35e0`.
+1. **Use the Flex-supported Python deployment path.** The workflow now creates `released-package.zip` from the Python project source and deploys it with Azure CLI `az functionapp deployment source config-zip --build-remote true`. This avoids locally vendoring Python dependencies and lets Azure perform the Linux-compatible remote build required for Python Flex deployments.
 
-Keep `AZURE_TENANT_ID=936720d3-5742-4aa8-a632-b7731b0f24ff` and `AZURE_SUBSCRIPTION_ID=aab5f649-b686-4f86-95cc-aa72ae71f03b`.
+2. **Allow infrastructure/RBAC propagation before code deployment.** The workflow now waits after ARM deployment, verifies the Function App managed identity can see its Cosmos Table data-plane assignment, and verifies the required Function host-storage roles before package deployment.
 
-The Azure federated credential must remain bound to `repo:s1xte3n@39813590/sixteen-resume-backend@1373839879:environment:production`.
+3. **Make readiness diagnostics actionable.** The production HTTP probe now records the actual HTTP status and response body instead of treating every `curl` failure as an indistinguishable startup timeout. The verification window was extended to 18 attempts.
 
-### Backend deployment RBAC
+4. **Preserve least privilege.** No storage keys, client secrets, direct Cosmos access from the frontend, or subscription-wide deployment permissions are introduced. The existing managed-identity assignments remain the approved model.
 
-The backend deployment service principal must have `Contributor` and `User Access Administrator` at `rg-sixteen-resume-prod`. Do not grant Owner or subscription-wide permissions as a workaround.
+## Verification required
 
-### Frontend public endpoint
+The Phase 3 backend gate is cleared only when a fresh production workflow demonstrates:
 
-Do not weaken or remove the existing HTTPS smoke test. Verify that `sixteen-resume.mooo.com` resolves publicly, targets the approved HTTPS/CDN delivery endpoint, has a valid certificate, routes to the Azure Storage static website for `st16resumeweb`, and returns the deployed `index.html`.
+- OIDC authentication succeeds with the recreated backend application registration.
+- ARM validation and deployment succeed.
+- Flex runtime configuration is correct.
+- Function host-storage and Cosmos Table RBAC assignments are visible to the Function App identity.
+- Python package deployment completes through the Flex package deployment path.
+- `GET /api/visitors` returns a successful response from the deployed Function App.
 
-If the approved edge/CDN resource has not yet been provisioned, that is the remaining Phase 3 infrastructure blocker. Do not replace HTTPS with the Storage origin URL merely to make CI green.
-
-## Verification evidence
-
-- Backend production workflow authenticates with the recreated client ID.
-- Backend ARM validation/deployment completes.
-- Backend Function package deployment and `GET /api/visitors` readiness succeed.
-- Frontend production workflow authenticates and uploads successfully.
-- `https://sixteen-resume.mooo.com/` passes the existing smoke test.
-- No secrets, storage keys, client secrets, direct Cosmos access, or alternate deployment paths are introduced.
+If the HTTP probe still returns 503 after these changes, use the captured response body and Azure Function/Application Insights runtime logs to identify the remaining application dependency failure rather than extending the timeout again.
 
 ## Gate status
 
-**BLOCKED — remaining external blockers are backend GitHub environment client-ID rebinding, backend deployment-role verification, and frontend DNS/HTTPS delivery readiness.**
+**BLOCKED — one backend Phase 3 runtime-readiness blocker remains: production `GET /api/visitors` must pass after the corrected Flex Python deployment and RBAC propagation handling.**
