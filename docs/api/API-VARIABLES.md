@@ -1,20 +1,47 @@
 # API Variables
 
-## X-Request-ID
+## VC-001 — GET /api/visitors
 
-- Type: UUID v4 string
-- Required: No
-- Generated when omitted: Yes
-- Returned on success/error: Yes
-- Secret: No
+### Request
 
-## Content-Type
+| Variable | Direction | Required | Type | Validation |
+|---|---|---:|---|---|
+| `Origin` | Request | Browser-generated | string | Must match production CORS allowlist |
+| `Accept` | Request | Recommended | media type | Should permit `application/json` |
+| `X-Request-ID` | Request | No | UUID string | UUID v4 when present |
+| Query parameters | Request | No | — | None supported |
+| Body | Request | No | — | Must be absent/empty |
 
-- Type: media type
-- Required: No
-- Allowed value: application/json
-- Parameters such as charset are accepted.
+### Response
 
-## Query/path/body
+| Variable | Direction | Required | Type | Validation |
+|---|---|---:|---|---|
+| `Content-Type` | Response | Yes | media type | `application/json` |
+| `X-Request-ID` | Response | Yes | UUID string | UUID v4 |
+| `count` | Body | Yes | integer | >= 0 |
 
-No path, query, or body variables are supported.
+### Error response
+
+| Field | Type | Required | Constraint |
+|---|---|---:|---|
+| `error.code` | string | Yes | Uppercase identifier |
+| `error.message` | string | Yes | 1–256 characters |
+| `error.requestId` | UUID string | Yes | UUID v4 |
+| `error.details.timestamp` | date-time | No | RFC 3339 UTC |
+
+## Internal DB-001 variables
+
+| Variable | Type | Public | Rule |
+|---|---|---:|---|
+| `PartitionKey` | string | No | Stable internal logical partition |
+| `RowKey` | string | No | Stable internal counter entity |
+| `Count` | integer | No | >= 0 |
+| Entity version/ETag | provider-specific | No | Used for concurrency control |
+
+## Identifier rules
+
+- `X-Request-ID`: UUID v4.
+- No visitor/user identifier.
+- No session identifier.
+- No IP address field.
+- No Cosmos `PartitionKey` or `RowKey` exposed publicly.
