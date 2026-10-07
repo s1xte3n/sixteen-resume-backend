@@ -1,0 +1,401 @@
+name: Backend CI
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+      - "feature/**"
+      - "fix/**"
+      - "chore/**"
+  pull_request:
+    branches:
+      - main
+      - develop
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backend-cicd-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: "3.12"
+  NODE_VERSION: "22"
+  ARM_TEMPLATE: "infra/azure/azuredeploy.json"
+  PACKAGE_FILE: "released-package.zip"
+
+jobs:
+  validate:
+    name: Test and validate
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install Python dependencies
+        run: python -m pip install -r requirements.txt
+
+      - name: Run deterministic unit tests
+        run: pytest -q tests/test_visitors.py
+
+      - name: Validate Flex ARM infrastructure structure
+        run: pytest -q tests/test_arm_template.py
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install Azurite
+        run: npm install --global azurite
+
+      - name: Start Azurite
+        run: |
+          azurite --silent > /tmp/azurite.log 2>&1 &
+          for attempt in {1..30}; do
+            if curl --silent --show-error --fail --max-time 2 http://127.0.0.1:10002/devstoreaccount1?comp=list > /dev/null; then
+              break
+            fi
+            sleep 1
+          done
+
+      - name: Run persistence integration tests
+        env:
+          RUN_AZURITE_TESTS: "true"
+        run: pytest -q tests/test_table_counter.py
+
+      - name: Install Azure Functions Core Tools
+        run: |
+          curl -sL https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > microsoft.gpg
+          sudo install -o root -g root -m 644 microsoft.gpg /etc/apt/trusted.gpg.d/microsoft.gpg
+          rm microsoft.gpg
+          echo "deb [arch=amd64] https://packages.microsoft.com/repos/microsoft-ubuntu-$(lsb_release -cs)-prod $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/azure-functions.list
+          sudo apt-get update
+          sudo apt-get install -y azure-functions-core-tools-4
+
+      - name: Prepare local Functions settings
+        run: cp local.settings.json.example local.settings.json
+
+      - name: Start Azure Functions host
+        run: |
+          func start --verbose > /tmp/functions.log 2>&1 &
+          for attempt in {1..60}; do
+            if curl --silent --fail http://127.0.0.1:7071/api/visitors > /tmp/visitors-response.json; then
+              break
+            fi
+            sleep 2
+          done
+
+      - name: Run executable HTTP contract tests
+        env:
+          RUN_FUNCTION_HOST_TESTS: "true"
+          FUNCTION_BASE_URL: "http://127.0.0.1:7071"
+        run: pytest -q tests/test_http_contract.py
+
+      - name: Upload local runtime logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-local-runtime-logs
+          path: |
+            /tmp/azurite.log
+            /tmp/functions.log
+            /tmp/visitors-response.json
+
+  deploy:
+    name: Deploy Flex infrastructure and Function App
+    needs: validate
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Log in to Azure with OIDC
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Verify Azure subscription context
+        run: az account show --output table
+
+      - name: Verify East US Flex Consumption availability
+        env:
+          AZURE_LOCATION: ${{ vars.AZURE_LOCATION }}
+        run: |
+          az functionapp list-flexconsumption-locations             --query "sort_by(@, &name)[].name"             --output json > flex-locations.json
+
+          python - <<'PY'
+          import json
+          import os
+
+          location = os.environ["AZURE_LOCATION"].lower()
+          locations = {item.lower() for item in json.load(open("flex-locations.json"))}
+          if location not in locations:
+              raise SystemExit(
+                  f"Flex Consumption is not currently listed for {location}."
+              )
+          print(f"Flex Consumption location available: {location}")
+          PY
+
+      - name: Verify Python 3.12 Flex runtime availability
+        env:
+          AZURE_LOCATION: ${{ vars.AZURE_LOCATION }}
+        run: |
+          az functionapp list-flexconsumption-runtimes             --location "${AZURE_LOCATION}"             --runtime python             --output json > flex-python-runtimes.json
+
+          python - <<'PY'
+          import json
+
+          data = json.load(open("flex-python-runtimes.json"))
+          text = json.dumps(data)
+          if "3.12" not in text:
+              raise SystemExit("Python 3.12 is not currently listed for Flex Consumption in the approved region.")
+          print("Python 3.12 is listed for Flex Consumption in the approved region.")
+          PY
+
+      - name: Validate ARM template in Azure
+        run: |
+          az deployment group validate             --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}"             --template-file "${{ env.ARM_TEMPLATE }}"             --parameters               location="${{ vars.AZURE_LOCATION }}"               environmentName="production"               frontendStorageAccountName="${{ vars.FRONTEND_STORAGE_ACCOUNT_NAME }}"               functionStorageAccountName="${{ vars.FUNCTION_STORAGE_ACCOUNT_NAME }}"               deploymentStorageAccountName="${{ vars.DEPLOYMENT_STORAGE_ACCOUNT_NAME }}"               deploymentStorageContainerName="${{ vars.DEPLOYMENT_STORAGE_CONTAINER_NAME }}"               functionPlanName="${{ vars.FUNCTION_PLAN_NAME }}"               functionAppName="${{ vars.FUNCTION_APP_NAME }}"               cosmosAccountName="${{ vars.COSMOS_ACCOUNT_NAME }}"               cosmosTableName="${{ vars.COSMOS_TABLE_NAME }}"               corsAllowedOrigin="${{ vars.CORS_ALLOWED_ORIGIN }}"
+
+      - name: Deploy approved Flex ARM infrastructure
+        id: arm-deploy
+        run: |
+          az deployment group create             --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}"             --template-file "${{ env.ARM_TEMPLATE }}"             --parameters               location="${{ vars.AZURE_LOCATION }}"               environmentName="production"               frontendStorageAccountName="${{ vars.FRONTEND_STORAGE_ACCOUNT_NAME }}"               functionStorageAccountName="${{ vars.FUNCTION_STORAGE_ACCOUNT_NAME }}"               deploymentStorageAccountName="${{ vars.DEPLOYMENT_STORAGE_ACCOUNT_NAME }}"               deploymentStorageContainerName="${{ vars.DEPLOYMENT_STORAGE_CONTAINER_NAME }}"               functionPlanName="${{ vars.FUNCTION_PLAN_NAME }}"               functionAppName="${{ vars.FUNCTION_APP_NAME }}"               cosmosAccountName="${{ vars.COSMOS_ACCOUNT_NAME }}"               cosmosTableName="${{ vars.COSMOS_TABLE_NAME }}"               corsAllowedOrigin="${{ vars.CORS_ALLOWED_ORIGIN }}"             --name "sixteen-resume-flex-${{ github.run_number }}"             --output json > arm-deployment.json
+
+      - name: Verify ARM deployment succeeded
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          state = json.loads(Path("arm-deployment.json").read_text()).get("properties", {}).get("provisioningState")
+          if state != "Succeeded":
+              raise SystemExit(f"ARM deployment failed: {state!r}")
+          print(f"ARM provisioning state: {state}")
+          PY
+
+      - name: Verify deployed Flex configuration
+        env:
+          RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+          FUNCTION_APP_NAME: ${{ vars.FUNCTION_APP_NAME }}
+          FUNCTION_PLAN_NAME: ${{ vars.FUNCTION_PLAN_NAME }}
+        run: |
+          az resource show             --resource-group "${RESOURCE_GROUP}"             --resource-type Microsoft.Web/serverfarms             --name "${FUNCTION_PLAN_NAME}"             --query "{sku:sku.name,tier:sku.tier,location:location}"             --output json > flex-plan.json
+
+          az functionapp show             --resource-group "${RESOURCE_GROUP}"             --name "${FUNCTION_APP_NAME}"             --query "{state:state,location:location,kind:kind,identity:identity.type,config:properties.functionAppConfig}"             --output json > flex-app.json
+
+          az functionapp config appsettings list             --resource-group "${RESOURCE_GROUP}"             --name "${FUNCTION_APP_NAME}"             --output json > function-settings.json
+
+          python - <<'PY'
+          import json
+
+          plan = json.load(open("flex-plan.json"))
+          app = json.load(open("flex-app.json"))
+          settings = {item["name"]: item["value"] for item in json.load(open("function-settings.json"))}
+
+          assert plan["sku"] == "FC1", plan
+          assert plan["tier"] == "FlexConsumption", plan
+          assert app["kind"] == "functionapp,linux", app
+          assert app["identity"] == "SystemAssigned", app
+          assert app["config"]["runtime"] == {"name": "python", "version": "3.12"}, app
+          assert app["config"]["scaleAndConcurrency"].get("alwaysReady") in ([], None), app
+          assert app["config"]["scaleAndConcurrency"].get("instanceMemoryMB") == 512, app
+          assert app["config"]["scaleAndConcurrency"].get("maximumInstanceCount") == 1, app
+          assert settings["AzureWebJobsStorage"] == ""
+          assert "AzureWebJobsStorage__accountName" in settings
+          assert "WEBSITE_CONTENTAZUREFILECONNECTIONSTRING" not in settings
+          assert "WEBSITE_CONTENTSHARE" not in settings
+          assert "WEBSITE_RUN_FROM_PACKAGE" not in settings
+          assert settings["FUNCTIONS_EXTENSION_VERSION"] == "~4"
+          assert "FUNCTIONS_WORKER_RUNTIME" not in settings
+          print("Deployed Flex configuration verified.")
+          PY
+
+      - name: Build Python Function deployment package
+        run: |
+          rm -rf package
+          mkdir -p package
+          cp function_app.py host.json requirements.txt package/
+          cp -R src package/src
+          rm -f "${PACKAGE_FILE}"
+          (
+            cd package
+            zip -r "../${PACKAGE_FILE}" . -x "*.pyc" -x "*/__pycache__/*"
+          )
+
+      - name: Wait for Flex app restart after infrastructure deployment
+        run: sleep 60
+
+      - name: Wait for Function identity RBAC propagation
+        env:
+          RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+          FUNCTION_APP_NAME: ${{ vars.FUNCTION_APP_NAME }}
+        run: |
+          set -euo pipefail
+
+          PRINCIPAL_ID="$(az functionapp identity show             --resource-group "${RESOURCE_GROUP}"             --name "${FUNCTION_APP_NAME}"             --query principalId             --output tsv)"
+
+          for attempt in {1..18}; do
+            count="$(az rest               --method get               --url "https://management.azure.com/subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/${RESOURCE_GROUP}/providers/Microsoft.DocumentDB/databaseAccounts/${{ vars.COSMOS_ACCOUNT_NAME }}/tableRoleAssignments?api-version=2026-03-15"               --query "value[?properties.principalId=='${PRINCIPAL_ID}'] | length(@)"               --output tsv)"
+
+            if [ "${count}" = "1" ]; then
+              echo "Cosmos Table data-plane role assignment is visible."
+              break
+            fi
+
+            echo "Waiting for Cosmos Table RBAC propagation (${attempt}/18)."
+            sleep 10
+          done
+
+          storageScope="/subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/${RESOURCE_GROUP}/providers/Microsoft.Storage/storageAccounts/${{ vars.FUNCTION_STORAGE_ACCOUNT_NAME }}"
+          storageRoles="$(az rest             --method get             --url "https://management.azure.com${storageScope}/providers/Microsoft.Authorization/roleAssignments?api-version=2022-04-01&\$filter=principalId%20eq%20'${PRINCIPAL_ID}'"             --query "value[].properties.roleDefinitionId"             --output tsv)"
+
+          printf '%s\n' "${storageRoles}" | grep -q "b7e6dc6d-f1e8-4753-8033-0f276bb0955b"
+          printf '%s\n' "${storageRoles}" | grep -q "0a9a7e1f-b9d0-4cc4-a60d-0319b160aaa3"
+          printf '%s\n' "${storageRoles}" | grep -q "974c5e8b-45b9-4653-ba55-5f855dd0fb88"
+          echo "Function host storage RBAC is visible."
+
+      - name: Verify deployed Cosmos Table RBAC binding
+        env:
+          RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+          FUNCTION_APP_NAME: ${{ vars.FUNCTION_APP_NAME }}
+          COSMOS_ACCOUNT_NAME: ${{ vars.COSMOS_ACCOUNT_NAME }}
+          SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+        run: |
+          set -euo pipefail
+
+          PRINCIPAL_ID="$(az functionapp identity show             --resource-group "${RESOURCE_GROUP}"             --name "${FUNCTION_APP_NAME}"             --query principalId             --output tsv)"
+
+          ACCOUNT_SCOPE="/subscriptions/${SUBSCRIPTION_ID}/resourceGroups/${RESOURCE_GROUP}/providers/Microsoft.DocumentDB/databaseAccounts/${COSMOS_ACCOUNT_NAME}"
+
+          ROLE_COUNT="$(az rest             --method get             --url "https://management.azure.com${ACCOUNT_SCOPE}/tableRoleAssignments?api-version=2023-04-15"             --query "value[?properties.principalId=='${PRINCIPAL_ID}' && contains(properties.roleDefinitionId, 'tableRoleDefinitions/00000000-0000-0000-0000-000000000002') && properties.scope=='${ACCOUNT_SCOPE}'] | length(@)"             --output tsv)"
+
+          if [[ "${ROLE_COUNT}" != "1" ]]; then
+            echo "::error::Cosmos Table Data Contributor role is not bound to the current Function App identity."
+            exit 1
+          fi
+
+          COSMOS_ENDPOINT="$(az cosmosdb show             --resource-group "${RESOURCE_GROUP}"             --name "${COSMOS_ACCOUNT_NAME}"             --query "documentEndpoint"             --output tsv)"
+
+          TABLE_ENDPOINT="$(az rest             --method get             --url "https://management.azure.com${ACCOUNT_SCOPE}?api-version=2023-04-15"             --query "properties.tableEndpoint"             --output tsv)"
+
+          if [[ -z "${TABLE_ENDPOINT}" || "${TABLE_ENDPOINT}" == "${COSMOS_ENDPOINT}" ]]; then
+            echo "::error::Cosmos Table endpoint is missing or incorrectly resolved to the document endpoint."
+            exit 1
+          fi
+
+          echo "Cosmos Table RBAC and endpoint configuration verified."
+
+      - name: Deploy Function package with Flex remote build
+        run: |
+          set -euo pipefail
+          az functionapp deployment source config-zip             --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}"             --name "${{ vars.FUNCTION_APP_NAME }}"             --src "${PACKAGE_FILE}"             --build-remote true
+
+      - name: Verify deployed Flex app configuration and HTTP readiness
+        env:
+          RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+          FUNCTION_APP_NAME: ${{ vars.FUNCTION_APP_NAME }}
+        run: |
+          set -euo pipefail
+
+          az functionapp show \
+            --resource-group "${RESOURCE_GROUP}" \
+            --name "${FUNCTION_APP_NAME}" \
+            --query "{kind:kind,location:location,identityType:identity.type,functionAppConfig:properties.functionAppConfig}" \
+            --output json > flex-app-runtime.json
+
+          python - <<'PY'
+          import json
+
+          app = json.load(open("flex-app-runtime.json"))
+
+          assert app["kind"] == "functionapp,linux", app
+          assert app["identityType"] == "SystemAssigned", app
+
+          config = app["functionAppConfig"]
+          assert config["runtime"] == {"name": "python", "version": "3.12"}, config
+          assert config["scaleAndConcurrency"]["alwaysReady"] == [], config
+          assert config["scaleAndConcurrency"]["instanceMemoryMB"] == 512, config
+          assert config["scaleAndConcurrency"]["maximumInstanceCount"] == 1, config
+          assert config["deployment"]["storage"]["type"] == "blobContainer", config
+          assert config["deployment"]["storage"]["authentication"]["type"] == "SystemAssignedIdentity", config
+
+          print("Flex app configuration verified.")
+          PY
+
+          for attempt in {1..18}; do
+            status="$(
+              curl --silent --show-error --max-time 20                 --output /tmp/visitors-response.json                 --write-out "%{http_code}"                 "https://${FUNCTION_APP_NAME}.azurewebsites.net/api/visitors"                 || true
+            )"
+
+            case "${status}" in
+              2??)
+                echo "Function HTTP endpoint is healthy on attempt ${attempt}/18."
+                cat /tmp/visitors-response.json
+                exit 0
+                ;;
+              *)
+                echo "Function HTTP endpoint attempt ${attempt}/18 returned HTTP ${status:-curl-error}."
+                cat /tmp/visitors-response.json || true
+                sleep 10
+                ;;
+            esac
+          done
+
+          echo "Function HTTP endpoint did not become healthy within the verification window."
+          echo "Final response:"
+          cat /tmp/visitors-response.json || true
+          echo "Runtime configuration:"
+          cat flex-app-runtime.json
+          exit 1
+      - name: Record deployment evidence
+        if: always()
+        run: |
+          {
+            echo "commit=${{ github.sha }}"
+            echo "run=${{ github.run_id }}"
+            echo "resource_group=${{ vars.AZURE_RESOURCE_GROUP }}"
+            echo "function_app=${{ vars.FUNCTION_APP_NAME }}"
+            echo "hosting_plan=${{ vars.FUNCTION_PLAN_NAME }}"
+            echo "arm_deployment=${{ steps.arm-deploy.outcome }}"
+            echo "package=${{ env.PACKAGE_FILE }}"
+            echo "deployment_model=Flex Consumption package deployment"
+          } > deployment-evidence.txt
+
+      - name: Upload deployment evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-flex-deployment-evidence-${{ github.run_id }}
+          path: |
+            arm-deployment.json
+            flex-locations.json
+            flex-python-runtimes.json
+            flex-plan.json
+            flex-app.json
+            function-settings.json
+            deployment-evidence.txt
+            ${{ env.PACKAGE_FILE }}

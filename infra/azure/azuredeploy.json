@@ -1,0 +1,85 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "location": {"type":"string","defaultValue":"eastus","allowedValues":["eastus"],"metadata":{"description":"Approved Azure deployment region."}},
+    "environmentName": {"type":"string","defaultValue":"production","allowedValues":["production"],"metadata":{"description":"Approved single deployment environment."}},
+    "frontendStorageAccountName": {"type":"string","minLength":3,"maxLength":24,"metadata":{"description":"Globally unique StorageV2 account name for the Azure Storage static website."}},
+    "functionStorageAccountName": {"type":"string","minLength":3,"maxLength":24,"metadata":{"description":"Globally unique StorageV2 account name used by Flex runtime host storage."}},
+    "deploymentStorageAccountName": {"type":"string","minLength":3,"maxLength":24,"metadata":{"description":"Globally unique StorageV2 account name used only for the private Flex deployment container."}},
+    "deploymentStorageContainerName": {"type":"string","defaultValue":"function-deployments","minLength":3,"maxLength":63,"metadata":{"description":"Private blob container used as the Flex deployment source."}},
+    "functionPlanName": {"type":"string","minLength":1,"maxLength":40,"metadata":{"description":"Azure Functions Flex Consumption hosting plan name."}},
+    "functionAppName": {"type":"string","minLength":2,"maxLength":60,"metadata":{"description":"Globally unique Linux Azure Function App name."}},
+    "cosmosAccountName": {"type":"string","minLength":3,"maxLength":50,"metadata":{"description":"Globally unique Azure Cosmos DB for Table account name."}},
+    "cosmosTableName": {"type":"string","defaultValue":"VisitorCounter","minLength":3,"maxLength":63,"metadata":{"description":"Single logical Cosmos DB Table API table owned by the backend."}},
+    "corsAllowedOrigin": {"type":"string","minLength":8,"maxLength":2048,"metadata":{"description":"Exact production frontend origin allowed to call the Function API."}}
+  },
+  "variables": {
+    "tags":{"project":"azure-cloud-resume-challenge","environment":"[parameters('environmentName')]","managedBy":"arm","repository":"s1xte3n/sixteen-resume-backend"},
+    "storageBlobDataOwnerRoleDefinitionId":"b7e6dc6d-f1e8-4753-8033-0f276bb0955b",
+    "storageBlobDataContributorRoleDefinitionId":"ba92f5b4-2d11-453d-a403-e96b0029c9fe",
+    "storageTableDataContributorRoleDefinitionId":"0a9a7e1f-b9d0-4cc4-a60d-0319b160aaa3","storageQueueDataContributorRoleDefinitionId":"974c5e8b-45b9-4653-ba55-5f855dd0fb88"
+  },
+  "resources": [
+    {"type":"Microsoft.Storage/storageAccounts","apiVersion":"2023-05-01","name":"[parameters('frontendStorageAccountName')]","location":"[parameters('location')]","tags":"[variables('tags')]","sku":{"name":"Standard_LRS"},"kind":"StorageV2","properties":{"accessTier":"Hot","allowBlobPublicAccess":true,"allowCrossTenantReplication":false,"allowSharedKeyAccess":true,"minimumTlsVersion":"TLS1_2","publicNetworkAccess":"Enabled","supportsHttpsTrafficOnly":true}},
+    {"type":"Microsoft.Storage/storageAccounts/blobServices","apiVersion":"2025-08-01","name":"[format('{0}/default', parameters('frontendStorageAccountName'))]","dependsOn":["[resourceId('Microsoft.Storage/storageAccounts', parameters('frontendStorageAccountName'))]"],"properties":{"staticWebsite":{"enabled":true,"indexDocument":"index.html","errorDocument404Path":"404.html"}}},
+    {"type":"Microsoft.Storage/storageAccounts","apiVersion":"2023-05-01","name":"[parameters('functionStorageAccountName')]","location":"[parameters('location')]","tags":"[variables('tags')]","sku":{"name":"Standard_LRS"},"kind":"StorageV2","properties":{"accessTier":"Hot","allowBlobPublicAccess":false,"allowCrossTenantReplication":false,"allowSharedKeyAccess":false,"defaultToOAuthAuthentication":true,"minimumTlsVersion":"TLS1_2","publicNetworkAccess":"Enabled","supportsHttpsTrafficOnly":true}},
+    {"type":"Microsoft.Storage/storageAccounts","apiVersion":"2023-05-01","name":"[parameters('deploymentStorageAccountName')]","location":"[parameters('location')]","tags":"[variables('tags')]","sku":{"name":"Standard_LRS"},"kind":"StorageV2","properties":{"accessTier":"Hot","allowBlobPublicAccess":false,"allowCrossTenantReplication":false,"allowSharedKeyAccess":false,"defaultToOAuthAuthentication":true,"minimumTlsVersion":"TLS1_2","publicNetworkAccess":"Enabled","supportsHttpsTrafficOnly":true}},
+    {"type":"Microsoft.Storage/storageAccounts/blobServices","apiVersion":"2025-08-01","name":"[format('{0}/default', parameters('deploymentStorageAccountName'))]","dependsOn":["[resourceId('Microsoft.Storage/storageAccounts', parameters('deploymentStorageAccountName'))]"],"properties":{}},
+    {"type":"Microsoft.Storage/storageAccounts/blobServices/containers","apiVersion":"2023-05-01","name":"[format('{0}/default/{1}', parameters('deploymentStorageAccountName'), parameters('deploymentStorageContainerName'))]","dependsOn":["[resourceId('Microsoft.Storage/storageAccounts/blobServices', parameters('deploymentStorageAccountName'), 'default')]"],"properties":{"publicAccess":"None"}},
+    {"type":"Microsoft.Web/serverfarms","apiVersion":"2024-04-01","name":"[parameters('functionPlanName')]","location":"[parameters('location')]","kind":"functionapp","tags":"[variables('tags')]","sku":{"name":"FC1","tier":"FlexConsumption"},"properties":{"reserved":true}},
+    {"type":"Microsoft.DocumentDB/databaseAccounts","apiVersion":"2023-04-15","name":"[parameters('cosmosAccountName')]","location":"[parameters('location')]","tags":"[variables('tags')]","kind":"GlobalDocumentDB","properties":{"databaseAccountOfferType":"Standard","enableAutomaticFailover":false,"enableMultipleWriteLocations":false,"disableLocalAuth":true,"publicNetworkAccess":"Enabled","networkAclBypass":"None","locations":[{"locationName":"[parameters('location')]","failoverPriority":0,"isZoneRedundant":false}],"consistencyPolicy":{"defaultConsistencyLevel":"Session"},"capabilities":[{"name":"EnableTable"},{"name":"EnableServerless"}]}},
+    {"type":"Microsoft.DocumentDB/databaseAccounts/tables","apiVersion":"2022-05-15-preview","name":"[format('{0}/{1}', parameters('cosmosAccountName'), parameters('cosmosTableName'))]","dependsOn":["[resourceId('Microsoft.DocumentDB/databaseAccounts', parameters('cosmosAccountName'))]"],"properties":{"resource":{"id":"[parameters('cosmosTableName')]"}}},
+    {
+      "type":"Microsoft.Web/sites","apiVersion":"2024-11-01","name":"[parameters('functionAppName')]","location":"[parameters('location')]","tags":"[variables('tags')]","kind":"functionapp,linux","identity":{"type":"SystemAssigned"},
+      "properties":{
+        "httpsOnly":true,
+        "serverFarmId":"[resourceId('Microsoft.Web/serverfarms', parameters('functionPlanName'))]",
+        "functionAppConfig":{
+          "deployment":{"storage":{"type":"blobContainer","value":"[concat(reference(resourceId('Microsoft.Storage/storageAccounts', parameters('deploymentStorageAccountName')), '2023-05-01').primaryEndpoints.blob, parameters('deploymentStorageContainerName'))]","authentication":{"type":"SystemAssignedIdentity"}}},
+          "runtime":{"name":"python","version":"3.12"},
+          "scaleAndConcurrency":{"alwaysReady":[],"instanceMemoryMB":512,"maximumInstanceCount":1}
+        },
+        "siteConfig":{
+          "minTlsVersion":"1.2","ftpsState":"Disabled",
+          "cors":{"allowedOrigins":["[parameters('corsAllowedOrigin')]"],"supportCredentials":false},
+          "appSettings":[
+            {"name":"AzureWebJobsStorage","value":""},{"name":"AzureWebJobsStorage__accountName","value":"[parameters('functionStorageAccountName')]"},
+            {"name":"FUNCTIONS_EXTENSION_VERSION","value":"~4"},
+            {"name":"APP_ENV","value":"production"},
+            {"name":"VISITOR_COUNTER_BACKEND","value":"table"},
+            {"name":"AZURE_COSMOS_TABLE_NAME","value":"[parameters('cosmosTableName')]"},
+            {"name":"COSMOS_ENDPOINT","value":"[reference(resourceId('Microsoft.DocumentDB/databaseAccounts', parameters('cosmosAccountName')), '2023-04-15').tableEndpoint]"},
+            {"name":"COSMOS_PARTITION_KEY","value":"VisitorCounter"},
+            {"name":"COSMOS_ROW_KEY","value":"Global"}
+          ]
+        }
+      },
+      "dependsOn":[
+        "[resourceId('Microsoft.Web/serverfarms', parameters('functionPlanName'))]",
+        "[resourceId('Microsoft.Storage/storageAccounts', parameters('functionStorageAccountName'))]",
+        "[resourceId('Microsoft.Storage/storageAccounts/blobServices/containers', parameters('deploymentStorageAccountName'), 'default', parameters('deploymentStorageContainerName'))]",
+        "[resourceId('Microsoft.DocumentDB/databaseAccounts', parameters('cosmosAccountName'))]",
+        "[resourceId('Microsoft.DocumentDB/databaseAccounts/tables', parameters('cosmosAccountName'), parameters('cosmosTableName'))]"
+      ]
+    },
+    {"type":"Microsoft.Authorization/roleAssignments","apiVersion":"2022-04-01","name":"[guid(resourceId('Microsoft.Storage/storageAccounts', parameters('functionStorageAccountName')), parameters('functionAppName'), variables('storageBlobDataOwnerRoleDefinitionId'))]","scope":"[resourceId('Microsoft.Storage/storageAccounts', parameters('functionStorageAccountName'))]","dependsOn":["[resourceId('Microsoft.Web/sites', parameters('functionAppName'))]","[resourceId('Microsoft.Storage/storageAccounts', parameters('functionStorageAccountName'))]"],"properties":{"roleDefinitionId":"[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', variables('storageBlobDataOwnerRoleDefinitionId'))]","principalId":"[reference(resourceId('Microsoft.Web/sites', parameters('functionAppName')), '2024-11-01', 'Full').identity.principalId]","principalType":"ServicePrincipal"}},
+    {"type":"Microsoft.Authorization/roleAssignments","apiVersion":"2022-04-01","name":"[guid(resourceId('Microsoft.Storage/storageAccounts', parameters('functionStorageAccountName')), parameters('functionAppName'), variables('storageTableDataContributorRoleDefinitionId'))]","scope":"[resourceId('Microsoft.Storage/storageAccounts', parameters('functionStorageAccountName'))]","dependsOn":["[resourceId('Microsoft.Web/sites', parameters('functionAppName'))]","[resourceId('Microsoft.Storage/storageAccounts', parameters('functionStorageAccountName'))]"],"properties":{"roleDefinitionId":"[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', variables('storageTableDataContributorRoleDefinitionId'))]","principalId":"[reference(resourceId('Microsoft.Web/sites', parameters('functionAppName')), '2024-11-01', 'Full').identity.principalId]","principalType":"ServicePrincipal"}},
+    {"type":"Microsoft.Authorization/roleAssignments","apiVersion":"2022-04-01","name":"[guid(resourceId('Microsoft.Storage/storageAccounts', parameters('deploymentStorageAccountName')), parameters('functionAppName'), variables('storageBlobDataContributorRoleDefinitionId'))]","scope":"[resourceId('Microsoft.Storage/storageAccounts', parameters('deploymentStorageAccountName'))]","dependsOn":["[resourceId('Microsoft.Web/sites', parameters('functionAppName'))]","[resourceId('Microsoft.Storage/storageAccounts', parameters('deploymentStorageAccountName'))]","[resourceId('Microsoft.Storage/storageAccounts/blobServices/containers', parameters('deploymentStorageAccountName'), 'default', parameters('deploymentStorageContainerName'))]"],"properties":{"roleDefinitionId":"[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', variables('storageBlobDataContributorRoleDefinitionId'))]","principalId":"[reference(resourceId('Microsoft.Web/sites', parameters('functionAppName')), '2024-11-01', 'Full').identity.principalId]","principalType":"ServicePrincipal"}},
+    {"type":"Microsoft.Authorization/roleAssignments","apiVersion":"2022-04-01","name":"[guid(resourceId('Microsoft.Storage/storageAccounts', parameters('functionStorageAccountName')), parameters('functionAppName'), variables('storageQueueDataContributorRoleDefinitionId'))]","scope":"[resourceId('Microsoft.Storage/storageAccounts', parameters('functionStorageAccountName'))]","dependsOn":["[resourceId('Microsoft.Web/sites', parameters('functionAppName'))]","[resourceId('Microsoft.Storage/storageAccounts', parameters('functionStorageAccountName'))]"],"properties":{"roleDefinitionId":"[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', variables('storageQueueDataContributorRoleDefinitionId'))]","principalId":"[reference(resourceId('Microsoft.Web/sites', parameters('functionAppName')), '2024-11-01', 'Full').identity.principalId]","principalType":"ServicePrincipal"}},
+    {"type":"Microsoft.DocumentDB/databaseAccounts/tableRoleAssignments","apiVersion":"2023-04-15","name":"[format('{0}/{1}', parameters('cosmosAccountName'), guid(resourceId('Microsoft.DocumentDB/databaseAccounts/tables', parameters('cosmosAccountName'), parameters('cosmosTableName')), parameters('functionAppName'), 'cosmos-table-data-contributor'))]","dependsOn":["[resourceId('Microsoft.Web/sites', parameters('functionAppName'))]","[resourceId('Microsoft.DocumentDB/databaseAccounts/tables', parameters('cosmosAccountName'), parameters('cosmosTableName'))]"],"properties":{"principalId":"[reference(resourceId('Microsoft.Web/sites', parameters('functionAppName')), '2024-11-01', 'Full').identity.principalId]","roleDefinitionId":"[format('{0}/tableRoleDefinitions/00000000-0000-0000-0000-000000000002', resourceId('Microsoft.DocumentDB/databaseAccounts', parameters('cosmosAccountName')))]","scope":"[resourceId('Microsoft.DocumentDB/databaseAccounts', parameters('cosmosAccountName'))]"}}
+  ],
+  "outputs":{
+    "frontendStorageAccountName":{"type":"string","value":"[parameters('frontendStorageAccountName')]"},
+    "frontendStaticWebsiteEndpoint":{"type":"string","value":"[reference(resourceId('Microsoft.Storage/storageAccounts', parameters('frontendStorageAccountName')), '2023-05-01').primaryEndpoints.web]"},
+    "functionStorageAccountName":{"type":"string","value":"[parameters('functionStorageAccountName')]"},
+    "deploymentStorageAccountName":{"type":"string","value":"[parameters('deploymentStorageAccountName')]"},
+    "deploymentStorageContainerName":{"type":"string","value":"[parameters('deploymentStorageContainerName')]"},
+    "functionAppName":{"type":"string","value":"[parameters('functionAppName')]"},
+    "functionAppUrl":{"type":"string","value":"[format('https://{0}.azurewebsites.net', parameters('functionAppName'))]"},
+    "functionPrincipalId":{"type":"string","value":"[reference(resourceId('Microsoft.Web/sites', parameters('functionAppName')), '2024-11-01', 'Full').identity.principalId]"},
+    "cosmosAccountName":{"type":"string","value":"[parameters('cosmosAccountName')]"},
+    "cosmosEndpoint":{"type":"string","value":"[reference(resourceId('Microsoft.DocumentDB/databaseAccounts', parameters('cosmosAccountName')), '2023-04-15').documentEndpoint]"},
+    "cosmosTableName":{"type":"string","value":"[parameters('cosmosTableName')]"}
+  }
+}

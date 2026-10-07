@@ -1,0 +1,93 @@
+openapi: 3.0.3
+info:
+  title: Sixteen Resume Visitor API
+  version: 1.0.0
+  description: Executable Phase 7.1 visitor-counter contract.
+servers:
+  - url: http://localhost:7071
+paths:
+  /api/visitors:
+    get:
+      operationId: getVisitors
+      summary: Increment and return the visitor count
+      parameters:
+        - in: header
+          name: X-Request-ID
+          required: false
+          schema:
+            type: string
+            format: uuid
+          description: Optional UUID v4 correlation ID.
+      responses:
+        '200':
+          description: Visitor count incremented successfully.
+          headers:
+            X-Request-ID:
+              schema:
+                type: string
+                format: uuid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VisitorSuccess'
+        '400':
+          description: Invalid request ID, query parameters, or request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '415':
+          description: Unsupported Content-Type.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '503':
+          description: Visitor counter dependency unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '504':
+          description: Visitor counter dependency timeout.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+    post:
+      operationId: unsupportedPost
+      summary: Explicitly rejected method
+      responses:
+        '405':
+          description: Only GET is supported.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+components:
+  schemas:
+    VisitorSuccess:
+      type: object
+      required: [count]
+      additionalProperties: false
+      properties:
+        count:
+          type: integer
+          minimum: 1
+    ErrorEnvelope:
+      type: object
+      required: [error]
+      additionalProperties: false
+      properties:
+        error:
+          type: object
+          required: [code, message, requestId]
+          additionalProperties: false
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            requestId:
+              type: string
+              format: uuid
