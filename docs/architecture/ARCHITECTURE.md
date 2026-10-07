@@ -28,4 +28,4 @@ The frontend edge must not be considered implementation-ready until the selected
 
 ## Phase 3 blocker correction — current
 
-The frozen architecture is unchanged. The implementation correction is limited to runtime identity selection and deployment verification: the Function App uses its system-assigned managed identity explicitly for the Cosmos Table SDK, and CI treats Cosmos Table RBAC propagation as a hard prerequisite before HTTP readiness testing. The API contract, browser-to-Cosmos isolation, Flex hosting model, storage separation, and authentication architecture remain unchanged.
+The frozen architecture is unchanged. The Phase 3 correction is limited to provider-contract alignment, runtime identity selection, and deployment verification: the Function App uses its system-assigned managed identity explicitly for the Cosmos Table SDK; the Flex ARM site uses the current `Microsoft.Web/sites@2025-03-01` contract; and CI treats Cosmos Table RBAC propagation as a hard prerequisite before HTTP readiness testing. The API contract, browser-to-Cosmos isolation, Flex hosting model, storage separation, and authentication architecture remain unchanged.
