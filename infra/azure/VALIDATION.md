@@ -305,3 +305,14 @@ The backend CI verification step was also corrected to require FUNCTIONS_WORKER_
 No API, Cosmos authentication model, managed-identity model, private deployment container, Y1 path, client secret, publish profile, or unrelated frontend implementation was introduced.
 
 **Phase 4 gate: BLOCKED.** These source/IaC corrections require CI and a fresh production GitHub Actions deployment from main before any production PASS can be recorded.
+
+
+## Phase 4 continuation — Cosmos Table RBAC scope correction — 2026-10-07
+
+The latest controlled ARM deployment reached the Cosmos Table role-assignment resource and Azure rejected the previous `properties.scope` value because the full Table resource ID was not a valid scope for the current Table RBAC provider contract.
+
+The ARM template now uses the Cosmos account resource ID as the role-assignment scope. Microsoft documents this account-level scope for `Microsoft.DocumentDB/databaseAccounts/tableRoleAssignments`; the role definition remains the Cosmos DB for Table data-plane role and its data actions remain table/entity operations. The deployment contains one application table, `VisitorCounter`, so no second application table is introduced by this correction. citeturn4search0turn2search0
+
+This is a provider-contract correction only. No connection string, account key, direct browser access, additional table, API change, or permission broadening was introduced.
+
+**Phase 4 remains BLOCKED** until the corrected template passes authenticated CI/ARM deployment and the live Function identity's Cosmos authorization is directly verified.
