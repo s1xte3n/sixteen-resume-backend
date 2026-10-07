@@ -47,9 +47,9 @@ Repository: `s1xte3n/sixteen-resume-frontend`
 
 | Configuration | Type | GitHub location | Used by | Purpose |
 |---|---|---|---|---|
-| AZURE_CLIENT_ID | protected identifier | production environment secret | OIDC | frontend UAMI client ID |
-| AZURE_TENANT_ID | protected identifier | production environment secret | OIDC | tenant |
-| AZURE_SUBSCRIPTION_ID | protected identifier | production environment secret | OIDC | subscription |
+| AZURE_CLIENT_ID | protected identifier | production environment variable | OIDC | frontend UAMI client ID |
+| AZURE_TENANT_ID | protected identifier | production environment variable | OIDC | tenant |
+| AZURE_SUBSCRIPTION_ID | protected identifier | production environment variable | OIDC | subscription |
 | AZURE_RESOURCE_GROUP_NAME | non-secret | production environment variable | deploy/verify | Storage RG |
 | AZURE_STORAGE_ACCOUNT_NAME | non-secret | production environment variable | deploy/verify | frontend Storage |
 | AZURE_FRONTEND_IDENTITY_NAME | non-secret | production environment variable | OIDC verification | frontend UAMI |
