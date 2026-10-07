@@ -44,3 +44,17 @@ Phase 3 remains blocked only by the authenticated production deployment RBAC/OID
 | Frontend public endpoint | Pending | `VERIFY_PUBLIC_ENDPOINT=false` correctly prevents the custom-hostname check; the remaining frontend timeout is the mandatory Azure Storage static-website endpoint check and must be investigated separately. |
 
 **Phase gate status:** remains **BLOCKED** pending merge/deployment of the corrected ARM template, successful post-deployment Function/Cosmos verification, and separate Storage static-site reachability evidence.
+
+
+## Current deployment incident — 2026-10-07
+
+| Artifact | Status | Evidence / change |
+|---|---|---|
+| `infra/azure/azuredeploy.json` | Corrected | Cosmos Table `tableRoleAssignments` uses `2024-08-15-preview`; Function App resource identity remains `SystemAssigned`; Flex deployment-storage authentication remains `SystemAssignedIdentity`. |
+| `.github/workflows/backend-ci.yml` | Corrected on `fix/flex-rbac-verification` | Adds a provider-contract preflight and updates Cosmos Table RBAC verification to the supported API version. |
+| Backend ARM deployment | Failed in `sixteen-resume-flex-190` | Failure was specifically Cosmos Table RBAC API version `2023-04-15`; this is infrastructure/provider configuration, not application logic. |
+| Backend HTTP verification | Failed downstream | `DEPENDENCY_UNAVAILABLE` / HTTP 503 and timeout responses are consistent with the Function not having a usable Cosmos Table dependency after the failed infrastructure deployment. |
+| Frontend Storage smoke test | Failed / timed out | Must be rerun after the backend ARM deployment successfully provisions the static website resource; no frontend application change is required. |
+| Public hostname | Not a current application defect | `VERIFY_PUBLIC_ENDPOINT=false`; public HTTPS remains separately blocked by the unresolved approved edge/DNS path. |
+
+**Phase gate:** **BLOCKED** until a fresh `main` production run proves successful ARM deployment, Function/Cosmos RBAC, API health, and frontend Storage static-site reachability.
