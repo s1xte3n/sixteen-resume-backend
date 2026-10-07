@@ -1,7 +1,7 @@
 # Architecture
 
 ## Status
-**Phase 3 blocker correction in progress.** The application/data architecture is frozen, but the production edge architecture is not currently feasible under the hard R100/month recurring Azure/cloud ceiling. Backend OIDC/RBAC identity alignment is also not yet proven for the latest recreated service principal.
+**Phase 3 blocker correction in progress.** The application/data architecture is frozen, but the production edge architecture is not currently feasible under the hard R100/month recurring Azure/cloud ceiling. Backend OIDC/RBAC identity has been recreated; fresh production workflow evidence is still required to close the deployment/runtime gate.
 
 ## System
 - Frontend: Azure Storage static website `st16resumeweb`.
@@ -24,3 +24,8 @@ The frontend edge must not be considered implementation-ready until the selected
 - Public browser traffic terminates at Front Door over HTTPS.
 - Function accesses Azure data through its managed identity.
 - GitHub Actions uses federated identities; no client secrets or storage keys are stored in source control.
+
+
+## Phase 3 blocker correction — current
+
+The frozen architecture is unchanged. The implementation correction is limited to runtime identity selection and deployment verification: the Function App uses its system-assigned managed identity explicitly for the Cosmos Table SDK, and CI treats Cosmos Table RBAC propagation as a hard prerequisite before HTTP readiness testing. The API contract, browser-to-Cosmos isolation, Flex hosting model, storage separation, and authentication architecture remain unchanged.

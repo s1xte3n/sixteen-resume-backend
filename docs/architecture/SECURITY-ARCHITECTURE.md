@@ -18,3 +18,8 @@ Contributor alone cannot create `Microsoft.Authorization/roleAssignments`; there
 
 ## Public edge
 The custom hostname must terminate HTTPS at Azure Front Door Standard/Premium with a Microsoft-managed certificate and HTTP-to-HTTPS redirect.
+
+
+## Phase 3 blocker correction — current
+
+The backend deployment service principal is the recreated GitHub OIDC identity and is restricted to the production resource group with Contributor + User Access Administrator. The Function App itself uses its system-assigned managed identity for Cosmos DB for Table access; no client secret, account key, SAS token, or direct browser credential is introduced.

@@ -135,3 +135,14 @@ The backend deployment workflow now verifies, before HTTP readiness, that:
 No frontend application code, API contract, browser/Cosmos boundary, or authentication model changed.
 
 **Phase 3 blocker status:** backend Cosmos endpoint wiring corrected; fresh production deployment and HTTP/persistence evidence required before the blocker can be marked resolved.
+
+
+## Current Phase 3 blocker correction — 2026-10-07
+
+The previously observed backend deployment identity has been replaced. The active backend GitHub Actions application is client `e3f56077-0aae-4a90-bde3-d0c0ef2a35e0`, service-principal object `5eda2f89-4428-4c25-b93a-a1ddb1868864`. Its production resource-group permissions are Contributor plus User Access Administrator.
+
+The runtime-side Cosmos dependency correction is also committed for review: production table access explicitly uses the Function App's system-assigned managed identity, and CI now hard-fails when the Cosmos Table data-plane role is not visible before HTTP readiness verification.
+
+The ARM template itself already has the required Function App identity value `SystemAssigned`; `SystemAssignedIdentity` is valid only for the Flex deployment-storage authentication property. A local template containing `identity.type: SystemAssignedIdentity` is invalid and must be corrected to `SystemAssigned` before validation.
+
+Frontend OIDC and Storage Blob Data Contributor are already resolved. The remaining frontend timeout is the static-site/edge verification path, not a frontend application defect. Public custom-domain HTTPS remains separately blocked by the unresolved cost-compatible edge decision.
