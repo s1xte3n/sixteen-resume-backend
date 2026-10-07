@@ -37,3 +37,11 @@ No secret, client secret, Storage key, SAS token, Cosmos key, or browser credent
 ## Blocker policy
 
 No blocker is silently resolved. A configuration gate remains open until live evidence or an approved source-of-truth decision closes it.
+
+
+## Current OIDC correction — 2026-10-07
+
+- **Backend client ID:** current reported value is `4e6b194b-4fd7-4d6f-8972-7c1a8d21eb8d`; the previously recorded `e3f56077-0aae-4a90-bde3-d0c0ef2a35e0` is superseded.
+- **Backend live verification:** pending. The local `az identity show` check was invalid for the backend because the approved backend deployment identity is an Entra application/service principal, not a user-assigned managed identity.
+- **Frontend live verification:** blocked because `AZURE_FRONTEND_IDENTITY_NAME` is missing from the GitHub `production` environment and `sixteen-resume-frontend-github` is absent from Azure at the tested resource-group scope.
+- **Phase 5 gate:** NOT PASSED.
