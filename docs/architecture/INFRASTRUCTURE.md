@@ -23,3 +23,12 @@
 2. **Backend deployment RBAC:** the current backend service principal must have Contributor plus a scoped authorization-management role capable of Microsoft.Authorization/roleAssignments/write at rg-sixteen-resume-prod before ARM can create managed-identity role assignments. Contributor alone cannot assign Azure RBAC roles.
 3. **Frontend public edge:** sixteen-resume.mooo.com times out because the created Front Door endpoint is not yet wired to an approved origin/route/custom domain.
 4. **Edge cost feasibility:** Azure Front Door Standard is not approved because its current fixed base charge conflicts with the project's R100/month recurring Azure/cloud ceiling. ADR-006 is therefore a Phase 3 architecture blocker; do not finish or retain Front Door as production infrastructure until the budget/hosting/deviation decision is explicitly resolved.
+
+
+## Phase 3 blocker correction — current
+
+- Backend GitHub Actions identity is recreated and the production deployment identity is now the current client/service-principal pair recorded above.
+- Backend deployment RBAC is scoped to the production resource group: Contributor for resource deployment plus User Access Administrator for the ARM-declared managed-identity role assignments. Owner is not used.
+- The Function App production Cosmos Table client now explicitly uses the Function App system-assigned managed identity rather than the broader DefaultAzureCredential chain. The Cosmos Table audience remains `https://cosmos.azure.com`.
+- The deployment workflow now fails immediately when the Cosmos Table data-plane role assignment is not visible for the current Function App identity, instead of continuing to an ambiguous HTTP smoke-test failure.
+- The public frontend edge remains a separate Phase 3 feasibility blocker; no backend API or data architecture change is introduced.
