@@ -22,7 +22,7 @@ GitHub Actions authenticates to Azure through workload identity federation/OIDC.
 
 ### Important classification
 
-The OIDC values are identifiers rather than passwords/keys. The current workflows intentionally store them as GitHub Environment Secrets because that is the approved protected input mechanism. They must never be treated as evidence that a client secret exists.
+The OIDC values are identifiers rather than passwords/keys. They are therefore classified as GitHub Environment Variables, not GitHub Secrets. The workflow still runs inside the protected `production` environment. No client secret is introduced.
 
 ## Backend runtime credential flow
 
@@ -60,6 +60,10 @@ The backend deployment identity requires the approved deployment permissions bec
 - Do not print GitHub secrets.
 - Do not upload secret-bearing files as workflow artifacts.
 - If a credential is exposed, revoke/replace it and treat repository-history cleanup as separate remediation.
+
+## OIDC identifier handling
+
+OIDC identifiers are non-secret deployment metadata. Keep them scoped to the protected `production` environment, do not print them unnecessarily, and update them when the corresponding identity/tenant/subscription changes.
 
 ## Rotation/revocation
 
