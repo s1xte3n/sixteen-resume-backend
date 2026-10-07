@@ -2,46 +2,56 @@
 
 ## Scope
 
-This document records only Phase 3 deployment-verification blockers. It does not change the approved API contract, frontend architecture, hosting model, or credential model.
+This document records only Phase 3 deployment-verification blockers. It does not change the approved API contract, hosting model, Flex Consumption architecture, or GitHub OIDC authentication model.
 
-## Backend blocker — Flex host storage
+## Backend blocker — deployment identity recreation
 
-**Observed failure:** backend CI failed the ARM regression test because the Function App template contained the required empty `AzureWebJobsStorage` setting in the deployed Flex configuration, while the repository regression test and deployment verification still asserted that the setting must be absent.
+The existing backend GitHub OIDC identity is an Entra application/service principal named `sixteen-resume`.
 
-**Correction:**
+The required production GitHub subject is:
 
-- Retain identity-based `AzureWebJobsStorage__accountName`.
-- Add `AzureWebJobsStorage=""` as the Flex host-storage compatibility setting.
-- Grant the Function App system-assigned identity `Storage Queue Data Contributor` on the runtime Storage account.
-- Update ARM structural tests to require the corrected configuration.
-- Update production deployment verification to assert the same configuration.
+`repo:s1xte3n@39813590/sixteen-resume-backend@1373839879:environment:production`
 
-The Queue role uses the Azure built-in role definition `974c5e8b-45b9-4653-ba55-5f855dd0fb88`.
+The previous Azure deployment also established that the deployment identity could authenticate through OIDC but could not create the ARM template's required `Microsoft.Authorization/roleAssignments` resources.
 
-## Frontend blocker — GitHub OIDC federation
+### Approved correction
 
-**Observed failure:** the frontend production workflow presented the immutable GitHub production-environment subject:
+Recreate the backend deployment identity as:
 
-`repo:s1xte3n@39813590/sixteen-resume-frontend@1373840239:environment:production`
+- Entra application display name: `sixteen-resume`
+- Authentication: GitHub Actions OIDC
+- Issuer: `https://token.actions.githubusercontent.com`
+- Subject: `repo:s1xte3n@39813590/sixteen-resume-backend@1373839879:environment:production`
+- Audience: `api://AzureADTokenExchange`
+- GitHub production environment: `production`
+- Azure deployment scope: `rg-sixteen-resume-prod`
 
-Azure returned `AADSTS700213` because no matching federated identity credential exists for that exact subject.
+The recreated service principal must receive only the Azure permissions required by the approved ARM deployment. Do not introduce client secrets, publish profiles, or subscription-wide Owner access.
 
-**Repository status:** no frontend workflow change is required. The deployment workflow already uses the protected `production` environment and GitHub's current immutable repository/environment subject.
+The GitHub `production` environment must be updated with the recreated `AZURE_CLIENT_ID`. `AZURE_TENANT_ID` and `AZURE_SUBSCRIPTION_ID` remain unchanged.
 
-**External prerequisite:** the dedicated frontend user-assigned managed identity must contain exactly:
+## Frontend blocker — deployment identity recreation
+
+The frontend deployment identity remains a dedicated user-assigned managed identity.
+
+Its federated credential must exactly match:
 
 - Issuer: `https://token.actions.githubusercontent.com`
 - Subject: `repo:s1xte3n@39813590/sixteen-resume-frontend@1373840239:environment:production`
 - Audience: `api://AzureADTokenExchange`
 
-After the Azure credential is corrected, the existing OIDC verification workflow must pass before frontend production acceptance can proceed.
+The frontend identity must retain only the approved storage data-plane access.
 
-## Gate
+The GitHub `production` environment must be updated with the recreated identity's `AZURE_CLIENT_ID`. `AZURE_TENANT_ID` and `AZURE_SUBSCRIPTION_ID` remain unchanged.
+
+## Verification gate
 
 Phase 3 remains **BLOCKED** until:
 
-1. Backend CI passes the corrected Flex host-storage regression checks.
-2. The backend production workflow successfully deploys and reaches the existing HTTPS `GET /api/visitors` readiness verification.
-3. The frontend Azure federated credential is corrected externally and the existing OIDC verification workflow succeeds.
+1. Backend identity recreation and OIDC federation are verified.
+2. Backend ARM deployment can create its required RBAC resources without broad privilege escalation.
+3. Backend production deployment reaches the existing HTTPS `GET /api/visitors` readiness check.
+4. Frontend identity recreation and exact immutable-subject federation are verified.
+5. The existing frontend OIDC verification workflow succeeds.
 
-No Phase 4 redesign or unrelated feature work is included in this correction.
+No API contract, frontend architecture, storage model, CDN decision, or authentication mechanism is changed by this remediation.
