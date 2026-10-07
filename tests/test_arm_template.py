@@ -239,7 +239,7 @@ def test_function_storage_rbac_is_least_privilege_for_flex_runtime_and_deploymen
         assert "reference(resourceId('Microsoft.Web/sites', parameters('functionAppName'))" not in assignment["name"]
 
 
-def test_cosmos_role_assignment_is_table_scoped() -> None:
+def test_cosmos_role_assignment_uses_supported_table_rbac_scope() -> None:
     template = load_template()
     assignments = resources(
         template,
@@ -252,8 +252,7 @@ def test_cosmos_role_assignment_is_table_scoped() -> None:
     assert "tableRoleDefinitions/00000000-0000-0000-0000-000000000002" in assignment[
         "roleDefinitionId"
     ]
-    assert "Microsoft.DocumentDB/databaseAccounts/tables" in assignment["scope"]
-    assert "parameters('cosmosTableName')" in assignment["scope"]
+    assert assignment["scope"] == "[resourceId('Microsoft.DocumentDB/databaseAccounts', parameters('cosmosAccountName'))]"
     assert "reference(resourceId('Microsoft.Web/sites', parameters('functionAppName'))" not in assignments[0]["name"]
 
 
