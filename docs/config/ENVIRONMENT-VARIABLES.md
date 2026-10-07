@@ -44,11 +44,18 @@ No additional Azure dev/test/staging environments are approved.
 | CFG-024 | Flex maximumInstanceCount | Function | production | integer | Yes | IaC owner | Flex scale config | **1** currently approved/provider-required | Yes | No | Yes via ARM | No | No |
 | CFG-025 | Flex alwaysReady | Function | production | array | Yes | IaC owner | Flex scale config | Empty array for zero always-ready instances | Yes | No | Yes via ARM | No | No |
 | CFG-026 | COSMOS audience | Function | production | URL | Yes | Backend security owner | Managed-identity Table client | `https://cosmos.azure.com` | Yes | No | No | No | No |
+| CFG-026A | AZURE_CLIENT_ID | GitHub/Azure CI | deployment | UUID | Yes | Azure/GitHub identity owner | GitHub OIDC | Must match backend deployment identity client ID | No — identifier only | Yes | No | No | No |
+| CFG-026B | AZURE_TENANT_ID | GitHub/Azure CI | deployment | UUID | Yes | Azure tenant owner | GitHub OIDC | Approved tenant UUID | No — identifier only | Yes | No | No | No |
+| CFG-026C | AZURE_SUBSCRIPTION_ID | GitHub/Azure CI | deployment | UUID | Yes | Azure subscription owner | GitHub OIDC + Azure REST verification | Approved subscription UUID | No — identifier only | Yes | No | No | No |
 | CFG-027 | PUBLIC_HOSTNAME | Frontend/DNS/CI | production | hostname | Yes | DNS/delivery owner | frontend workflow, release verification | Approved hostname; exact value **TBD/configuration gate** until edge/DNS decision | Name only; value deployment-specific | Yes | No | No | Yes |
 | CFG-028 | VERIFY_PUBLIC_ENDPOINT | Frontend CI | production | boolean | Yes | Release owner | frontend workflow | false until approved edge/DNS exists; true only after edge acceptance | Yes | Yes | No | No | No |
 | CFG-029 | PUBLIC_API_BASE_URL | Frontend | none currently | URL | No | — | Not consumed by current approved frontend | **Do not introduce**; frontend uses same-origin `/api/visitors` | N/A | No | No | No | No |
 | CFG-030 | PUBLIC_API_PATH | Frontend | none currently | path | No | — | Not consumed by current frontend source; API path is frozen by VC-001 | **Do not introduce as runtime configuration**; canonical path is `/api/visitors` | N/A | No | No | No | No |
 | CFG-031 | API_VERSION | Frontend/backend | none currently | string | No | — | No approved consumer | **Do not introduce**; VC-001 is the authoritative interface | N/A | No | No | No | No |
+
+## OIDC identifier classification
+
+`AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, and `AZURE_SUBSCRIPTION_ID` are non-secret OIDC identifiers. They are supplied as protected GitHub production environment variables and are not GitHub Secrets. No long-lived Azure credential is introduced.
 
 ## Fixed deployment/runtime settings
 

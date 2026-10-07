@@ -7,7 +7,7 @@
 | SEC-CFG-001 | Browser credential exposure | PASS | Browser receives no Cosmos, Azure, Storage, Function, or deployment credentials. |
 | SEC-CFG-002 | Cosmos direct access | PASS | Browser calls only GET /api/visitors; Cosmos access remains backend-only. |
 | SEC-CFG-003 | Runtime database credential | PASS | Function uses system-assigned managed identity + Cosmos Table RBAC; no connection string/key. |
-| SEC-CFG-004 | CI authentication | PASS | GitHub Actions uses OIDC; no long-lived Azure client secret. |
+| SEC-CFG-004 | CI authentication | PASS | GitHub Actions uses OIDC; `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, and `AZURE_SUBSCRIPTION_ID` are non-secret identifiers stored as protected production environment variables; no long-lived Azure client secret. |
 | SEC-CFG-005 | Frontend deployment auth | PASS | Frontend uploads through Entra authorization, not storage keys/SAS. |
 | SEC-CFG-006 | Backend deployment permissions | WARNING | Current architecture requires scoped Contributor + authorization-management permission because ARM creates role assignments; live RBAC evidence is still a gate. |
 | SEC-CFG-007 | Git history | PASS | Project rule prohibits credentials in tracked files; workflow scans frontend artifacts. |

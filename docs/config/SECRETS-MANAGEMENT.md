@@ -10,9 +10,9 @@ GitHub Actions authenticates to Azure through workload identity federation/OIDC.
 
 | ID | Name/reference | Type | Consumer | Storage | Injection | Lifetime | Rotation | Managed identity/OIDC eliminates it? | Logs | Commit |
 |---|---|---|---|---|---|---|---|---|---|---|
-| SEC-001 | AZURE_CLIENT_ID | OIDC identifier | GitHub Actions | GitHub production environment protected secret in current workflow | azure/login OIDC input | Federated-token based; identifier persists | Update when deployment identity changes | OIDC removes client secret, not the identifier | Never echo unnecessarily | Never in source values |
-| SEC-002 | AZURE_TENANT_ID | OIDC identifier | GitHub Actions | GitHub production environment protected secret in current workflow | azure/login OIDC input | Persistent identifier | Change only if tenant changes | OIDC removes client secret | Never echo unnecessarily | Never commit as secret value |
-| SEC-003 | AZURE_SUBSCRIPTION_ID | OIDC identifier | GitHub Actions | GitHub production environment protected secret in current workflow | azure/login OIDC input | Persistent identifier | Change only if subscription changes | OIDC removes client secret | Never echo unnecessarily | Never commit as secret value |
+| SEC-001 | AZURE_CLIENT_ID | OIDC identifier | GitHub Actions | GitHub production environment variable | azure/login OIDC input | Federated-token based; identifier persists | Update when deployment identity changes | OIDC removes client secret, not the identifier | Never echo unnecessarily | Never in source values |
+| SEC-002 | AZURE_TENANT_ID | OIDC identifier | GitHub Actions | GitHub production environment variable | azure/login OIDC input | Persistent identifier | Change only if tenant changes | OIDC removes client secret | Never echo unnecessarily | Never commit as secret value |
+| SEC-003 | AZURE_SUBSCRIPTION_ID | OIDC identifier | GitHub Actions | GitHub production environment variable | azure/login OIDC input | Persistent identifier | Change only if subscription changes | OIDC removes client secret | Never echo unnecessarily | Never commit as secret value |
 | SEC-004 | Azure client secret | Long-lived credential | None | N/A | None | N/A | N/A | **Yes** | Never | Must not exist |
 | SEC-005 | COSMOS_CONNECTION_STRING | Database credential | None in production | N/A | None | N/A | N/A | **Yes** | Never | Must not exist |
 | SEC-006 | COSMOS_ACCOUNT_KEY | Database credential | None | N/A | None | N/A | N/A | **Yes** | Never | Must not exist |
@@ -22,7 +22,7 @@ GitHub Actions authenticates to Azure through workload identity federation/OIDC.
 
 ### Important classification
 
-The OIDC values are identifiers rather than passwords/keys. The current workflows intentionally store them as GitHub Environment Secrets because that is the approved protected input mechanism. They must never be treated as evidence that a client secret exists.
+The OIDC values are identifiers rather than passwords/keys. They are therefore classified as GitHub Environment Variables, not GitHub Secrets. The workflow still runs inside the protected `production` environment. No client secret is introduced.
 
 ## Backend runtime credential flow
 
@@ -60,6 +60,10 @@ The backend deployment identity requires the approved deployment permissions bec
 - Do not print GitHub secrets.
 - Do not upload secret-bearing files as workflow artifacts.
 - If a credential is exposed, revoke/replace it and treat repository-history cleanup as separate remediation.
+
+## OIDC identifier handling
+
+OIDC identifiers are non-secret deployment metadata. Keep them scoped to the protected `production` environment, do not print them unnecessarily, and update them when the corresponding identity/tenant/subscription changes.
 
 ## Rotation/revocation
 

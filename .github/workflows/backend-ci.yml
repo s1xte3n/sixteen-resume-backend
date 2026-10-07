@@ -134,9 +134,9 @@ jobs:
       - name: Log in to Azure with OIDC
         uses: azure/login@v3
         with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
 
       - name: Verify Azure subscription context
         run: az account show --output table
@@ -288,7 +288,7 @@ jobs:
           PRINCIPAL_ID="$(az functionapp identity show             --resource-group "${RESOURCE_GROUP}"             --name "${FUNCTION_APP_NAME}"             --query principalId             --output tsv)"
 
           for attempt in {1..18}; do
-            count="$(az rest               --method get               --url "https://management.azure.com/subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/${RESOURCE_GROUP}/providers/Microsoft.DocumentDB/databaseAccounts/${{ vars.COSMOS_ACCOUNT_NAME }}/tableRoleAssignments?api-version=2026-03-15"               --query "value[?properties.principalId=='${PRINCIPAL_ID}'] | length(@)"               --output tsv)"
+            count="$(az rest               --method get               --url "https://management.azure.com/subscriptions/${{ vars.AZURE_SUBSCRIPTION_ID }}/resourceGroups/${RESOURCE_GROUP}/providers/Microsoft.DocumentDB/databaseAccounts/${{ vars.COSMOS_ACCOUNT_NAME }}/tableRoleAssignments?api-version=2026-03-15"               --query "value[?properties.principalId=='${PRINCIPAL_ID}'] | length(@)"               --output tsv)"
 
             if [ "${count}" = "1" ]; then
               echo "Cosmos Table data-plane role assignment is visible."
@@ -304,7 +304,7 @@ jobs:
             exit 1
           fi
 
-          storageScope="/subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/${RESOURCE_GROUP}/providers/Microsoft.Storage/storageAccounts/${{ vars.FUNCTION_STORAGE_ACCOUNT_NAME }}"
+          storageScope="/subscriptions/${{ vars.AZURE_SUBSCRIPTION_ID }}/resourceGroups/${RESOURCE_GROUP}/providers/Microsoft.Storage/storageAccounts/${{ vars.FUNCTION_STORAGE_ACCOUNT_NAME }}"
           storageRoles="$(az rest             --method get             --url "https://management.azure.com${storageScope}/providers/Microsoft.Authorization/roleAssignments?api-version=2022-04-01&\$filter=principalId%20eq%20'${PRINCIPAL_ID}'"             --query "value[].properties.roleDefinitionId"             --output tsv)"
 
           printf '%s\n' "${storageRoles}" | grep -q "b7e6dc6d-f1e8-4753-8033-0f276bb0955b"
@@ -317,7 +317,7 @@ jobs:
           RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
           FUNCTION_APP_NAME: ${{ vars.FUNCTION_APP_NAME }}
           COSMOS_ACCOUNT_NAME: ${{ vars.COSMOS_ACCOUNT_NAME }}
-          SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
         run: |
           set -euo pipefail
 
