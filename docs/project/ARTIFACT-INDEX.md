@@ -134,3 +134,11 @@ No secret value is required in source control. No API route or schema was change
 | `.github/workflows/verify-azure-oidc.yml` | Added — pending execution | Manual, non-deploying verification of protected production OIDC configuration and approved resource-group RBAC |
 
 The Phase 5 gate remains **NOT PASSED** until the controlled workflow is executed successfully against the actual protected GitHub production environment and Azure tenant. Workflow existence is not live evidence.
+
+
+## Phase 5 live OIDC remediation — 2026-10-07
+
+- `docs/config/OIDC-AZURE-LIVE-VERIFICATION.md` — **BLOCKED / live evidence pending**; backend verification is explicitly separated from frontend UAMI verification.
+- `docs/config/CONFIGURATION-SECURITY-REVIEW.md` — **BLOCKED** on frontend UAMI provisioning and GitHub production configuration.
+- `docs/config/CONFIGURATION-CHANGE-LOG.md` — records the OIDC boundary correction and live blocker.
+- Phase 5 configuration model remains authoritative; no API, persistence, or application behavior changed.

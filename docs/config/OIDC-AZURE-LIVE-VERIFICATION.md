@@ -2,9 +2,23 @@
 
 ## Purpose
 
-This workflow is a manual, non-deploying verification of the approved backend GitHub Actions → Microsoft Entra OIDC trust and production deployment RBAC boundary.
+This workflow is a manual, non-deploying verification of the **backend** GitHub Actions → Microsoft Entra OIDC trust and production deployment RBAC boundary.
 
 Workflow: `.github/workflows/verify-azure-oidc.yml`
+
+**Boundary correction:** frontend OIDC verification is a separate concern and must be performed from `s1xte3n/sixteen-resume-frontend`. Do not add frontend UAMI checks or frontend GitHub environment variables to the backend verification workflow.
+
+## Backend identity model
+
+The approved backend deployment identity is the Microsoft Entra application/service principal identified by the configured `AZURE_CLIENT_ID`.
+
+It is **not** a user-assigned managed identity resource. Therefore:
+
+- backend identity verification uses `az ad sp show` / `az ad app federated-credential list`;
+- `az identity show --name sixteen-resume-backend-github ...` is not the correct verification command;
+- the backend deployment identity is expected to have Contributor plus User Access Administrator at `rg-sixteen-resume-prod`.
+
+The current architecture records the active backend client ID as `e3f56077-0aae-4a90-bde3-d0c0ef2a35e0`; live Azure verification remains authoritative for its current existence and RBAC.
 
 ## Required protected production environment variables
 
@@ -15,42 +29,66 @@ Workflow: `.github/workflows/verify-azure-oidc.yml`
 
 These are non-secret identifiers/configuration values. No Azure client secret is required.
 
-## Acceptance checks
+## Backend acceptance checks
 
 A successful run must prove:
 
 1. GitHub production environment variables exist.
 2. OIDC login succeeds.
 3. Azure tenant and subscription match the configured identifiers.
-4. Exactly one federated credential matches:
+4. Exactly one federated credential on the configured Entra application matches:
    - issuer: `https://token.actions.githubusercontent.com`
    - subject: `repo:s1xte3n/sixteen-resume-backend:environment:production`
    - audience: `api://AzureADTokenExchange`
-5. The deployment service principal has Contributor at `rg-sixteen-resume-prod`.
-6. The deployment service principal has User Access Administrator at `rg-sixteen-resume-prod`.
+5. The configured service principal has Contributor at `rg-sixteen-resume-prod`.
+6. The configured service principal has User Access Administrator at `rg-sixteen-resume-prod`.
 
 The workflow does not deploy ARM resources, change RBAC, or mutate production state.
 
-## Controlled execution
+## Frontend live verification
 
-1. Merge the verification workflow through the normal protected PR path.
-2. Open GitHub Actions for the backend repository.
-3. Select **Verify Azure OIDC**.
-4. Select **Run workflow** against `main`.
-5. Confirm the protected `production` environment is used.
-6. Record run URL, commit SHA, conclusion, and failed/passed step evidence.
-7. Do not add a client secret or broaden RBAC to make a failed verification pass.
+Frontend verification belongs to:
 
-## Current status
+`s1xte3n/sixteen-resume-frontend/.github/workflows/verify-azure-oidc.yml`
 
-**PENDING LIVE EVIDENCE.**
+Its approved identity is the user-assigned managed identity `sixteen-resume-frontend-github`. The current live CLI evidence shows that identity is **not present** in `rg-sixteen-resume-prod`. This is a real provisioning blocker, not merely a missing GitHub variable.
 
-This environment cannot dispatch `workflow_dispatch` or inspect the Azure tenant directly. No live pass is claimed until the controlled GitHub Actions run succeeds.
+The frontend verifier must be run only after the frontend UAMI exists, its GitHub federated credential exists, and its Storage Blob Data Contributor assignment is present.
+
+## Controlled execution order
+
+1. Use the backend verification workflow exactly as committed; do not mix frontend checks into it.
+2. Verify the backend service principal directly with `az ad sp show --id <AZURE_CLIENT_ID>`.
+3. Verify the backend app federated credential and production RG RBAC.
+4. Provision the approved frontend UAMI if it is absent.
+5. Configure its GitHub federated credential and Storage Blob Data Contributor role.
+6. Configure the protected GitHub `production` environment variables in the frontend repository.
+7. Run the frontend **Verify Azure OIDC** workflow.
+8. Record run URL, commit SHA, conclusion, and failed/passed step evidence.
+9. Do not add client secrets or broaden RBAC to make a failed verification pass.
+
+## Current live status
+
+**BLOCKED — LIVE CONFIGURATION INCOMPLETE**
+
+Observed:
+
+- Backend: the manual `az identity show` command targets the wrong Azure identity type. Verify the approved service principal/application instead.
+- Frontend: `sixteen-resume-frontend-github` was not found in `rg-sixteen-resume-prod`.
+- GitHub: the controlled verification attempt failed because `AZURE_FRONTEND_IDENTITY_NAME` was missing from the GitHub production environment. That variable belongs to the frontend verification path.
+- No live OIDC pass is claimed until the repository-specific verification workflows succeed.
 
 ## Failure interpretation
 
-- Missing `vars.*`: GitHub production environment configuration defect.
+- Missing backend `vars.*`: backend GitHub production environment configuration defect.
+- Missing frontend `vars.*`: frontend GitHub production environment configuration defect.
 - Azure login failure: OIDC federation/tenant/subscription/client-ID defect.
 - Federated credential mismatch: Azure Entra federation defect.
-- Contributor missing: deployment identity RBAC defect.
-- User Access Administrator missing: deployment identity cannot create the approved managed-identity role assignments.
+- Backend Contributor missing: backend deployment identity RBAC defect.
+- Backend User Access Administrator missing: backend deployment identity cannot create the approved managed-identity role assignments.
+- Frontend UAMI missing: frontend identity provisioning defect.
+- Frontend Storage Blob Data Contributor missing: frontend deployment authorization defect.
+
+## Source-of-truth rule
+
+This verification artifact records live evidence only. It does not redefine the API contract, runtime identity model, storage model, Cosmos model, or deployment architecture.
