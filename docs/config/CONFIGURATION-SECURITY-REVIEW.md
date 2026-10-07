@@ -13,8 +13,8 @@
 | SEC-CFG-007 | Git history | PASS | Project rule prohibits credentials in tracked files; frontend workflow scans published artifacts. |
 | SEC-CFG-008 | Logs/evidence | PASS | Secrets must not be printed or uploaded; Azure CLI output must avoid credential material. |
 | SEC-CFG-009 | Backend/frontend OIDC separation | PASS | Backend uses the approved Entra application/service principal; frontend uses its separate user-assigned managed identity. Verification paths are repository-specific. |
-| SEC-CFG-010 | Frontend UAMI provisioning | BLOCKER | Live CLI verification reported `sixteen-resume-frontend-github` missing from `rg-sixteen-resume-prod`. Frontend OIDC cannot pass until the approved UAMI is provisioned. |
-| SEC-CFG-011 | GitHub production configuration | BLOCKER | The controlled verification run reported missing `AZURE_FRONTEND_IDENTITY_NAME`. Configure it in the frontend repository's protected `production` environment; do not move it into source code. |
+| SEC-CFG-010 | Frontend UAMI provisioning | PASS | Approved UAMI `sixteen-resume-frontend-github` now exists in `rg-sixteen-resume-prod`; client ID and principal ID are recorded in the frontend Phase 5 artifacts. |
+| SEC-CFG-011 | GitHub production configuration | WARNING | `AZURE_FRONTEND_IDENTITY_NAME` has been configured. Frontend `AZURE_CLIENT_ID` still requires synchronization to the newly provisioned UAMI client ID before the controlled workflow can pass. |
 | SEC-CFG-012 | CORS | TBD / configuration gate | Exact final origin cannot be frozen until public edge/hostname is approved. Wildcard is prohibited. |
 | SEC-CFG-013 | Public API abuse/rate limiting | TBD / contract/platform gate | No project-approved application rate-limit value exists. Do not invent one. |
 | SEC-CFG-014 | Edge/CDN | TBD / configuration gate | Exact production HTTPS/CDN service remains unresolved under ADR-006 and the cost ceiling. |
@@ -50,3 +50,13 @@ The frontend verification workflow had been constructing the federated-credentia
 - **Backend live verification:** pending. The local `az identity show` check was invalid for the backend because the approved backend deployment identity is an Entra application/service principal, not a user-assigned managed identity.
 - **Frontend live verification:** blocked because `AZURE_FRONTEND_IDENTITY_NAME` is missing from the GitHub `production` environment and `sixteen-resume-frontend-github` is absent from Azure at the tested resource-group scope.
 - **Phase 5 gate:** NOT PASSED.
+
+## Live correction — 2026-10-07
+
+- Frontend UAMI: `sixteen-resume-frontend-github` exists in `rg-sixteen-resume-prod`.
+- Frontend client ID: `2d19e037-cc57-462c-a950-862f9b8a80e6`.
+- Frontend principal ID: `200b60d9-b05a-4733-81f4-1053834de5c3`.
+- Federated credential subject: `repo:s1xte3n/sixteen-resume-frontend:environment:production`.
+- Frontend GitHub `AZURE_FRONTEND_IDENTITY_NAME` is configured.
+- Storage RBAC remains unverified because local `az role assignment` commands return `MissingSubscription`.
+- Phase 5 remains NOT PASSED until protected client-ID synchronization and Storage RBAC are proven by the controlled frontend workflow.
