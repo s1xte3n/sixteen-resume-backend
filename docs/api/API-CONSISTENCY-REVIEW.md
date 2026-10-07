@@ -16,6 +16,7 @@ A frontend client can implement VC-001 from the frozen contract without reading 
 | Error taxonomy | Included 415 | 400/405/429/500/503/504 | Standardized |
 | Correlation header | Returned by backend but not fully documented cross-repo | X-Request-ID documented request/response header | Documented in both repos |
 | OpenAPI | Backend omitted several canonical statuses | Contract-aligned statuses and schemas | Corrected |
+| Executable HTTP test | Expected stale 415 for bodyless text/plain request | Bodyless request is accepted; non-empty body remains 400 | Corrected |
 
 ## Frozen cross-repository contract
 
@@ -39,7 +40,7 @@ A frontend client can implement VC-001 from the frozen contract without reading 
 
 No new endpoint, feature, authentication model, persistence model, or architecture change was introduced.
 
-The backend request-validation implementation was corrected only to remove behavior that contradicted the frozen contract: content-type-specific `415` handling. Non-empty bodies remain rejected with `400 BAD_REQUEST`.
+The backend request-validation implementation and executable HTTP contract test are now aligned with the frozen Phase 4 contract: content-type alone does not cause `415`; a non-empty body remains rejected with `400 BAD_REQUEST`.
 
 ## Remaining evidence
 

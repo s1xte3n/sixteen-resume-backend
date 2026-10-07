@@ -151,23 +151,16 @@ def test_http_body_returns_400_without_increment():
     assert payload["error"]["code"] == "BAD_REQUEST"
 
 
-def test_http_unsupported_content_type_returns_415_without_increment():
+def test_http_content_type_without_body_is_accepted():
     status_before, _, body_before = _request()
     before = _json(body_before)["count"]
 
-    status, _, body = _request(
+    status, headers, body = _request(
         headers={"Content-Type": "text/plain"},
     )
 
-    status_after, _, body_after = _request()
-    after = _json(body_after)["count"]
-
-    assert status_before == 200
-    assert status == 415
-    assert status_after == 200
-    assert after == before + 1
-
+    assert status == 200
+    assert headers["X-Request-ID"]
     payload = _json(body)
-    assert set(payload) == {"error"}
-    assert set(payload["error"]) == {"code", "message", "requestId"}
-    assert payload["error"]["code"] == "UNSUPPORTED_MEDIA_TYPE"
+    assert set(payload) == {"count"}
+    assert payload["count"] == before + 1
