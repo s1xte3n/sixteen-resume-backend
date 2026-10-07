@@ -1,6 +1,6 @@
 # Phase 5 — Environment & Configuration Inventory
 
-Status: **Phase 5 baseline — implementation-ready, live values pending provisioning**
+Status: **Phase 5 baseline — configuration model complete; controlled live OIDC/RBAC verification in progress**
 
 This is the canonical cross-system configuration inventory. It does not redefine the API, architecture, or deployment model.
 
@@ -80,3 +80,12 @@ No additional Azure dev/test/staging environments are approved.
 3. Browser configuration contains no Azure/Cosmos credentials.
 4. ARM remains the source of truth for Azure resource configuration.
 5. GitHub production environment configuration is the source of CI/CD deployment inputs that are intentionally external to the repository.
+
+
+## Controlled live verification correction — 2026-10-07
+
+- Frontend UAMI `sixteen-resume-frontend-github` has now been provisioned in `rg-sixteen-resume-prod` with client ID `2d19e037-cc57-462c-a950-862f9b8a80e6` and principal ID `200b60d9-b05a-4733-81f4-1053834de5c3`.
+- Its production federated credential was corrected to subject `repo:s1xte3n/sixteen-resume-frontend:environment:production` and audience `api://AzureADTokenExchange`.
+- GitHub frontend `AZURE_FRONTEND_IDENTITY_NAME` has been configured. The protected frontend `AZURE_CLIENT_ID` must be synchronized to the new UAMI client ID before verification can pass.
+- Storage Blob Data Contributor on `st16resumeweb` remains unverified because local Azure CLI role-assignment operations return `MissingSubscription` despite a valid subscription context.
+- No client secret, Storage key, SAS token, Cosmos key, or alternate authentication mechanism is authorized.
