@@ -53,7 +53,7 @@ Frontend verification belongs to:
 
 Its approved identity is the user-assigned managed identity `sixteen-resume-frontend-github`. The current live CLI evidence shows that identity is **not present** in `rg-sixteen-resume-prod`. This is a real provisioning blocker, not merely a missing GitHub variable.
 
-The frontend verifier must be run only after the frontend UAMI exists, its GitHub federated credential exists, and its Storage Blob Data Contributor assignment is present.
+The frontend verifier must be run only after the frontend UAMI exists, its GitHub federated credential exists, and its Storage Blob Data Contributor assignment is present. The federated credential subject must be the standard GitHub environment subject `repo:s1xte3n/sixteen-resume-frontend:environment:production`; repository-owner/repository-ID variants are not valid for this verification path.
 
 ## Controlled execution order
 
