@@ -10,9 +10,9 @@ GitHub Actions authenticates to Azure through workload identity federation/OIDC.
 
 | ID | Name/reference | Type | Consumer | Storage | Injection | Lifetime | Rotation | Managed identity/OIDC eliminates it? | Logs | Commit |
 |---|---|---|---|---|---|---|---|---|---|---|
-| SEC-001 | AZURE_CLIENT_ID | OIDC identifier | GitHub Actions | GitHub production environment protected secret in current workflow | azure/login OIDC input | Federated-token based; identifier persists | Update when deployment identity changes | OIDC removes client secret, not the identifier | Never echo unnecessarily | Never in source values |
-| SEC-002 | AZURE_TENANT_ID | OIDC identifier | GitHub Actions | GitHub production environment protected secret in current workflow | azure/login OIDC input | Persistent identifier | Change only if tenant changes | OIDC removes client secret | Never echo unnecessarily | Never commit as secret value |
-| SEC-003 | AZURE_SUBSCRIPTION_ID | OIDC identifier | GitHub Actions | GitHub production environment protected secret in current workflow | azure/login OIDC input | Persistent identifier | Change only if subscription changes | OIDC removes client secret | Never echo unnecessarily | Never commit as secret value |
+| SEC-001 | AZURE_CLIENT_ID | OIDC identifier | GitHub Actions | GitHub production environment variable | azure/login OIDC input | Federated-token based; identifier persists | Update when deployment identity changes | OIDC removes client secret, not the identifier | Never echo unnecessarily | Never in source values |
+| SEC-002 | AZURE_TENANT_ID | OIDC identifier | GitHub Actions | GitHub production environment variable | azure/login OIDC input | Persistent identifier | Change only if tenant changes | OIDC removes client secret | Never echo unnecessarily | Never commit as secret value |
+| SEC-003 | AZURE_SUBSCRIPTION_ID | OIDC identifier | GitHub Actions | GitHub production environment variable | azure/login OIDC input | Persistent identifier | Change only if subscription changes | OIDC removes client secret | Never echo unnecessarily | Never commit as secret value |
 | SEC-004 | Azure client secret | Long-lived credential | None | N/A | None | N/A | N/A | **Yes** | Never | Must not exist |
 | SEC-005 | COSMOS_CONNECTION_STRING | Database credential | None in production | N/A | None | N/A | N/A | **Yes** | Never | Must not exist |
 | SEC-006 | COSMOS_ACCOUNT_KEY | Database credential | None | N/A | None | N/A | N/A | **Yes** | Never | Must not exist |
