@@ -230,7 +230,7 @@ jobs:
           assert "WEBSITE_CONTENTSHARE" not in settings
           assert "WEBSITE_RUN_FROM_PACKAGE" not in settings
           assert settings["FUNCTIONS_EXTENSION_VERSION"] == "~4"
-          assert settings["FUNCTIONS_WORKER_RUNTIME"] == "python"
+          assert "FUNCTIONS_WORKER_RUNTIME" not in settings
           print("Deployed Flex configuration verified.")
           PY
 
