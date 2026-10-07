@@ -142,3 +142,14 @@ The Phase 5 gate remains **NOT PASSED** until the controlled workflow is execute
 - `docs/config/CONFIGURATION-SECURITY-REVIEW.md` — **BLOCKED** on frontend UAMI provisioning and GitHub production configuration.
 - `docs/config/CONFIGURATION-CHANGE-LOG.md` — records the OIDC boundary correction and live blocker.
 - Phase 5 configuration model remains authoritative; no API, persistence, or application behavior changed.
+
+
+## Phase 5 live OIDC correction — 2026-10-07
+
+| Artifact | Status | Change |
+|---|---|---|
+| `docs/config/OIDC-AZURE-LIVE-VERIFICATION.md` | Updated | Replaces the superseded backend client ID with the current reported client ID `4e6b194b-4fd7-4d6f-8972-7c1a8d21eb8d`; preserves live verification as authoritative. |
+| `docs/config/CONFIGURATION-SECURITY-REVIEW.md` | Updated | Records the current backend identity and the active frontend OIDC blockers. |
+| Phase 5 gate | **NOT PASSED** | Backend OIDC/RBAC live evidence and frontend UAMI/GitHub production configuration remain unverified/blocked. |
+
+The local `az identity show` commands against `sixteen-resume-backend-github` and `sixteen-resume-frontend-github` must not be interpreted symmetrically: the approved backend deployment identity is an Entra application/service principal; the frontend deployment identity is the approved user-assigned managed identity. No API, application, persistence, or contract change is introduced.

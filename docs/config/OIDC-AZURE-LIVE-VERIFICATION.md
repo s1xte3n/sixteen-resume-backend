@@ -18,7 +18,7 @@ It is **not** a user-assigned managed identity resource. Therefore:
 - `az identity show --name sixteen-resume-backend-github ...` is not the correct verification command;
 - the backend deployment identity is expected to have Contributor plus User Access Administrator at `rg-sixteen-resume-prod`.
 
-The current architecture records the active backend client ID as `e3f56077-0aae-4a90-bde3-d0c0ef2a35e0`; live Azure verification remains authoritative for its current existence and RBAC.
+The current live-reported backend client ID is `4e6b194b-4fd7-4d6f-8972-7c1a8d21eb8d` (reported 2026-10-07). Live Azure verification remains authoritative for its current existence, federated credential, and RBAC. The earlier `e3f56077-0aae-4a90-bde3-d0c0ef2a35e0` value is superseded and must not be used.
 
 ## Required protected production environment variables
 
