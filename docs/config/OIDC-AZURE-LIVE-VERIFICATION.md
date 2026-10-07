@@ -51,9 +51,9 @@ Frontend verification belongs to:
 
 `s1xte3n/sixteen-resume-frontend/.github/workflows/verify-azure-oidc.yml`
 
-Its approved identity is the user-assigned managed identity `sixteen-resume-frontend-github`. The current live CLI evidence shows that identity is **not present** in `rg-sixteen-resume-prod`. This is a real provisioning blocker, not merely a missing GitHub variable.
+The approved UAMI `sixteen-resume-frontend-github` now exists in `rg-sixteen-resume-prod` with client ID `2d19e037-cc57-462c-a950-862f9b8a80e6` and principal ID `200b60d9-b05a-4733-81f4-1053834de5c3`. Its production federated credential has been corrected to the exact approved subject and audience.
 
-The frontend verifier must be run only after the frontend UAMI exists, its GitHub federated credential exists, and its Storage Blob Data Contributor assignment is present.
+The frontend verifier must now be run only after GitHub production `AZURE_CLIENT_ID` is synchronized to `2d19e037-cc57-462c-a950-862f9b8a80e6` and its Storage Blob Data Contributor assignment is present.
 
 ## Controlled execution order
 
@@ -69,7 +69,7 @@ The frontend verifier must be run only after the frontend UAMI exists, its GitHu
 
 ## Current live status
 
-**BLOCKED — LIVE CONFIGURATION INCOMPLETE**
+**BLOCKED — frontend identity/federation corrected; frontend client-ID synchronization and Storage RBAC remain unverified**
 
 Observed:
 
@@ -92,3 +92,14 @@ Observed:
 ## Source-of-truth rule
 
 This verification artifact records live evidence only. It does not redefine the API contract, runtime identity model, storage model, Cosmos model, or deployment architecture.
+
+
+## Live correction — 2026-10-07
+
+- Frontend UAMI: `sixteen-resume-frontend-github` exists in `rg-sixteen-resume-prod`.
+- Frontend client ID: `2d19e037-cc57-462c-a950-862f9b8a80e6`.
+- Frontend principal ID: `200b60d9-b05a-4733-81f4-1053834de5c3`.
+- Federated credential subject: `repo:s1xte3n/sixteen-resume-frontend:environment:production`.
+- Frontend GitHub `AZURE_FRONTEND_IDENTITY_NAME` is configured.
+- Storage RBAC remains unverified because local `az role assignment` commands return `MissingSubscription`.
+- Phase 5 remains NOT PASSED until protected client-ID synchronization and Storage RBAC are proven by the controlled frontend workflow.
