@@ -119,8 +119,8 @@ def test_runtime_storage_uses_identity_based_configuration() -> None:
     function = resources(template, "Microsoft.Web/sites")[0]
     settings = app_settings(function)
 
+    assert settings["AzureWebJobsStorage"] == ""
     assert "AzureWebJobsStorage__accountName" in settings
-    assert "AzureWebJobsStorage" not in settings
     assert "WEBSITE_CONTENTAZUREFILECONNECTIONSTRING" not in settings
     assert "WEBSITE_CONTENTSHARE" not in settings
     assert "WEBSITE_RUN_FROM_PACKAGE" not in settings
@@ -233,6 +233,7 @@ def test_function_storage_rbac_is_least_privilege_for_flex_runtime_and_deploymen
     assert any("storageBlobDataOwnerRoleDefinitionId" in role for role in role_ids)
     assert any("storageTableDataContributorRoleDefinitionId" in role for role in role_ids)
     assert any("storageBlobDataContributorRoleDefinitionId" in role for role in role_ids)
+    assert any("storageQueueDataContributorRoleDefinitionId" in role for role in role_ids)
 
     for assignment in assignments:
         assert assignment["properties"]["principalType"] == "ServicePrincipal"
