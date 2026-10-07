@@ -249,35 +249,54 @@ jobs:
           app-name: ${{ vars.FUNCTION_APP_NAME }}
           package: ${{ env.PACKAGE_FILE }}
 
-      - name: Verify Function App reaches Running state
+      - name: Verify deployed Flex app configuration and HTTP readiness
         env:
           RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
           FUNCTION_APP_NAME: ${{ vars.FUNCTION_APP_NAME }}
         run: |
-          for attempt in {1..12}; do
-            state="$(az functionapp show \
-              --resource-group "${RESOURCE_GROUP}" \
-              --name "${FUNCTION_APP_NAME}" \
-              --query state \
-              --output tsv)"
+          set -euo pipefail
 
-            if [ "${state}" = "Running" ]; then
-              echo "Function App state after package deployment: ${state}"
-              exit 0
-            fi
-
-            echo "Function App state attempt ${attempt}/12: ${state:-<empty>}"
-            sleep 10
-          done
-
-          echo "Function App did not reach Running state within the verification window."
           az functionapp show \
             --resource-group "${RESOURCE_GROUP}" \
             --name "${FUNCTION_APP_NAME}" \
-            --query "{state:state,kind:kind,location:location,serverFarmId:serverFarmId}" \
-            --output json
-          exit 1
+            --query "{kind:kind,location:location,identityType:identity.type,functionAppConfig:properties.functionAppConfig}" \
+            --output json > flex-app-runtime.json
 
+          python - <<'PY'
+          import json
+
+          app = json.load(open("flex-app-runtime.json"))
+
+          assert app["kind"] == "functionapp,linux", app
+          assert app["identityType"] == "SystemAssigned", app
+
+          config = app["functionAppConfig"]
+          assert config["runtime"] == {"name": "python", "version": "3.12"}, config
+          assert config["scaleAndConcurrency"]["alwaysReady"] == [], config
+          assert config["scaleAndConcurrency"]["instanceMemoryMB"] == 512, config
+          assert config["scaleAndConcurrency"]["maximumInstanceCount"] == 1, config
+          assert config["deployment"]["storage"]["type"] == "blobContainer", config
+          assert config["deployment"]["storage"]["authentication"]["type"] == "SystemAssignedIdentity", config
+
+          print("Flex app configuration verified.")
+          PY
+
+          for attempt in {1..12}; do
+            if curl --fail --silent --show-error --max-time 20 \
+              "https://${FUNCTION_APP_NAME}.azurewebsites.net/api/visitors" \
+              -o /tmp/visitors-response.json; then
+              echo "Function HTTP endpoint is reachable on attempt ${attempt}/12."
+              cat /tmp/visitors-response.json
+              exit 0
+            fi
+
+            echo "Function HTTP endpoint attempt ${attempt}/12 failed; waiting for Flex startup."
+            sleep 10
+          done
+
+          echo "Function HTTP endpoint did not become reachable within the verification window."
+          cat flex-app-runtime.json
+          exit 1
       - name: Record deployment evidence
         if: always()
         run: |
