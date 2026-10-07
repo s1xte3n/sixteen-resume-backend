@@ -31,3 +31,16 @@
 | Public HTTPS edge | Blocked | Storage is deployable independently; the custom hostname remains blocked until the approved edge/DNS/HTTPS path exists and passes evidence. |
 
 Phase 3 remains blocked only by the authenticated production deployment RBAC/OIDC evidence and the incomplete public HTTPS edge path. No API, application, or browser/Cosmos architecture change is introduced.
+
+
+## Current deployment remediation — 2026-10-07
+
+| Artifact | Status | Evidence / change |
+|---|---|---|
+| `infra/azure/azuredeploy.json` | Corrected on branch `fix/cosmos-table-rbac-api-version` | Cosmos Table `Microsoft.DocumentDB/databaseAccounts/tableRoleAssignments` now uses API version `2024-08-15-preview`, required for Table RBAC support. |
+| ARM validation | Previously passed | The template structure validated successfully before deployment; validation did not expose the provider-version incompatibility during the actual resource operation. |
+| ARM deployment | Blocked by provider API version | Deployment `sixteen-resume-flex-190` failed specifically on Cosmos Table RBAC with `BadRequest`: API version `2023-04-15` is invalid/too old for RBAC support. |
+| Backend runtime health | Blocked downstream | The observed `DEPENDENCY_UNAVAILABLE` / HTTP 503 responses are not treated as an application defect until the corrected infrastructure deployment completes and Cosmos RBAC is verified. |
+| Frontend public endpoint | Pending | `VERIFY_PUBLIC_ENDPOINT=false` correctly prevents the custom-hostname check; the remaining frontend timeout is the mandatory Azure Storage static-website endpoint check and must be investigated separately. |
+
+**Phase gate status:** remains **BLOCKED** pending merge/deployment of the corrected ARM template, successful post-deployment Function/Cosmos verification, and separate Storage static-site reachability evidence.
