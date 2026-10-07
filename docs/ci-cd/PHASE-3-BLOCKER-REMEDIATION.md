@@ -54,3 +54,24 @@ The approved project cost ceiling must also be satisfied before any edge service
 ## Evidence rule
 
 No Phase 3 gate is marked passed from configuration alone. A fresh production GitHub Actions run must prove OIDC login, deployment, runtime readiness and the required public endpoint behavior.
+
+
+## 2026-10-07 — Flex deployment failure correction
+
+The failed production deployment was isolated to two provider-contract issues, not application logic:
+
+- The deployed ARM operation used the obsolete Cosmos Table RBAC API version `2023-04-15`. The authoritative ARM template now uses `2024-08-15-preview`, which is required for Cosmos Table RBAC support.
+- The Function App ARM identity remains `identity.type: SystemAssigned`. The value `SystemAssignedIdentity` is valid only for `functionAppConfig.deployment.storage.authentication.type`; it must not be used for the Function App resource identity.
+
+The backend CI workflow was corrected to fail before deployment if either contract regresses and to use the current Cosmos Table RBAC API for post-deployment verification.
+
+The observed `DEPENDENCY_UNAVAILABLE` / HTTP 503 responses are treated as downstream infrastructure evidence: the Function reached the application boundary before its Cosmos Table RBAC dependency was successfully deployed and verified. No API or application redesign is required.
+
+## Required recovery order
+
+1. Merge `fix/flex-rbac-verification` into `main`.
+2. Run the backend production workflow and require ARM provisioning state `Succeeded`.
+3. Require Function system-assigned identity, Storage RBAC, and Cosmos Table RBAC verification to pass.
+4. Require `GET /api/visitors` to return a successful response before accepting backend production readiness.
+5. Only then rerun the frontend production deployment and Storage static-website smoke test.
+6. Keep `VERIFY_PUBLIC_ENDPOINT=false` until the approved public HTTPS/DNS edge is provisioned and separately verified.
