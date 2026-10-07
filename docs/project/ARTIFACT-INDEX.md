@@ -58,3 +58,17 @@ Phase 3 remains blocked only by the authenticated production deployment RBAC/OID
 | Public hostname | Not a current application defect | `VERIFY_PUBLIC_ENDPOINT=false`; public HTTPS remains separately blocked by the unresolved approved edge/DNS path. |
 
 **Phase gate:** **BLOCKED** until a fresh `main` production run proves successful ARM deployment, Function/Cosmos RBAC, API health, and frontend Storage static-site reachability.
+
+
+## Phase 3 blocker correction — 2026-10-07
+
+| Artifact | Status | Change |
+|---|---|---|
+| `src/infrastructure/factory.py` | Corrected on PR #51 | Production Cosmos Table access explicitly uses the Function App system-assigned managed identity. |
+| `.github/workflows/backend-ci.yml` | Corrected on PR #51 | Cosmos Table RBAC propagation is now a hard prerequisite before HTTP readiness verification. |
+| `docs/architecture/INFRASTRUCTURE.md` | Updated on PR #51 | Current backend deployment identity/RBAC and runtime identity boundary recorded. |
+| `docs/architecture/SECURITY-ARCHITECTURE.md` | Updated on PR #51 | Current least-privilege identity boundary recorded. |
+| `docs/architecture/ARCHITECTURE.md` | Updated on PR #51 | Frozen architecture explicitly separated from Phase 3 runtime/deployment verification corrections. |
+| `docs/ci-cd/PHASE-3-BLOCKER-STATUS.md` | Updated on PR #51 | Current identity, RBAC, runtime and frontend dependency status recorded. |
+
+The Phase 3 architecture remains unchanged. These are implementation/verification corrections only.
