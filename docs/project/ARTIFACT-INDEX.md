@@ -153,3 +153,11 @@ The Phase 5 gate remains **NOT PASSED** until the controlled workflow is execute
 | Phase 5 gate | **NOT PASSED** | Backend OIDC/RBAC live evidence and frontend UAMI/GitHub production configuration remain unverified/blocked. |
 
 The local `az identity show` commands against `sixteen-resume-backend-github` and `sixteen-resume-frontend-github` must not be interpreted symmetrically: the approved backend deployment identity is an Entra application/service principal; the frontend deployment identity is the approved user-assigned managed identity. No API, application, persistence, or contract change is introduced.
+
+## Phase 5 controlled frontend OIDC correction — 2026-10-07
+
+| Artifact | Status | Change |
+|---|---|---|
+| `.github/workflows/verify-azure-oidc.yml` in `s1xte3n/sixteen-resume-frontend` | Corrected on `fix/phase5-oidc-subject` | Federated-credential subject now uses the standard GitHub environment subject `repo:s1xte3n/sixteen-resume-frontend:environment:production`. |
+| Frontend UAMI configuration | Provisioned locally, live verification pending | UAMI `sixteen-resume-frontend-github` has client ID `2d19e037-cc57-462c-a950-862f9b8a80e6`; protected GitHub production variables still require completion. |
+| Phase 5 gate | **NOT PASSED** | Live federated credential replacement, Storage RBAC verification, and successful repository-specific OIDC workflow execution remain required. |
