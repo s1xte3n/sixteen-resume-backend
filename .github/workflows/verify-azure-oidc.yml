@@ -1,0 +1,88 @@
+name: Verify Azure OIDC
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: backend-azure-oidc-verification
+  cancel-in-progress: true
+
+jobs:
+  verify-oidc:
+    name: Verify GitHub → Azure OIDC (backend)
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate required production environment variables
+        shell: bash
+        env:
+          AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+          AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+          AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+          AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+        run: |
+          set -euo pipefail
+          for name in AZURE_CLIENT_ID AZURE_TENANT_ID AZURE_SUBSCRIPTION_ID AZURE_RESOURCE_GROUP; do
+            if [[ -z "${!name}" ]]; then echo "::error::Missing GitHub production environment variable: $name"; exit 1; fi
+          done
+
+      - name: Azure login with OIDC
+        uses: azure/login@v3
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Verify Azure subscription and tenant context
+        shell: bash
+        env:
+          EXPECTED_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+          EXPECTED_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+        run: |
+          set -euo pipefail
+          actual_tenant="$(az account show --query tenantId -o tsv)"
+          actual_subscription="$(az account show --query id -o tsv)"
+          [[ "${actual_tenant}" == "${EXPECTED_TENANT_ID}" ]] || { echo "::error::Azure tenant mismatch"; exit 1; }
+          [[ "${actual_subscription}" == "${EXPECTED_SUBSCRIPTION_ID}" ]] || { echo "::error::Azure subscription mismatch"; exit 1; }
+
+      - name: Verify federated credential
+        shell: bash
+        env:
+          AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          expected_subject="repo:${GITHUB_REPOSITORY}:environment:production"
+          credentials_json="$(az ad app federated-credential list --id "${AZURE_CLIENT_ID}" --output json)"
+          match_count="$(jq --arg subject "${expected_subject}" '[.[] | select(.issuer == "https://token.actions.githubusercontent.com" and .subject == $subject and (.audiences | index("api://AzureADTokenExchange")))] | length' <<<"${credentials_json}")"
+          [[ "${match_count}" -eq 1 ]] || { echo "::error::Expected exactly one matching GitHub Actions federated credential."; exit 1; }
+          echo "Federated credential issuer, subject and audience match."
+
+      - name: Verify deployment resource-group access
+        shell: bash
+        env:
+          AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+          AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+        run: |
+          set -euo pipefail
+          rg_scope="/subscriptions/$(az account show --query id -o tsv)/resourceGroups/${AZURE_RESOURCE_GROUP}"
+          principal_object_id="$(az ad sp show --id "${AZURE_CLIENT_ID}" --query id -o tsv)"
+          contributor_count="$(az role assignment list --assignee-object-id "${principal_object_id}" --scope "${rg_scope}" --query "[?roleDefinitionName=='Contributor'] | length(@)" -o tsv)"
+          uaa_count="$(az role assignment list --assignee-object-id "${principal_object_id}" --scope "${rg_scope}" --query "[?roleDefinitionName=='User Access Administrator'] | length(@)" -o tsv)"
+          [[ "${contributor_count}" -ge 1 ]] || { echo "::error::Contributor role missing at production resource-group scope."; exit 1; }
+          [[ "${uaa_count}" -ge 1 ]] || { echo "::error::User Access Administrator role missing at production resource-group scope."; exit 1; }
+          echo "Deployment identity has the approved resource-group role boundary."
+
+      - name: Azure logout
+        if: always()
+        shell: bash
+        run: az logout
