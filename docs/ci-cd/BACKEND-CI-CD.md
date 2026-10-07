@@ -191,3 +191,20 @@ The workflow's live Flex verification was also aligned with the approved templat
 These are provider-compatibility corrections only. No API redesign, credential change, Y1 migration, direct Cosmos access, or permission broadening was introduced.
 
 **Current production gate: BLOCKED.** CI must pass, followed by a fresh production workflow from main.
+
+
+## Phase 4 continuation — Static website API-version correction — 2026-10-07
+
+The controlled production deployment reached the frontend Storage account and Azure rejected the static website request with:
+
+`InvalidRequestParameters: properties.staticWebsiteEnabled`.
+
+Root cause: the ARM template declared `Microsoft.Storage/storageAccounts/blobServices` with API version `2023-05-01`, while the `staticWebsite` deployment property is supported for this resource type beginning with API version `2025-08-01`. The template now uses `2025-08-01` for Blob Service resources, preserving the existing `staticWebsite.enabled=true`, `indexDocument=index.html`, and `errorDocument404Path=404.html` configuration.
+
+The public frontend Storage account continues to use `allowBlobPublicAccess=true`, which is required for Azure Storage static website hosting. Runtime and private deployment Storage accounts remain unchanged and continue to disable shared-key access and public Blob access.
+
+A structural test now locks the frontend Blob Service resource to API version `2025-08-01` so the provider-compatible static website configuration cannot regress to an API version that does not support the property.
+
+No change was made to the Flex Consumption baseline, Function runtime, managed identity, RBAC model, Cosmos Table API, API contract, deployment authentication, or frontend application behavior.
+
+**Phase 4 gate: BLOCKED.** This correction is source/IaC evidence only. CI and a fresh production GitHub Actions deployment from `main` are still required before production deployment or runtime evidence can be marked passed.
