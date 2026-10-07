@@ -278,6 +278,37 @@ jobs:
           printf '%s\n' "${storageRoles}" | grep -q "974c5e8b-45b9-4653-ba55-5f855dd0fb88"
           echo "Function host storage RBAC is visible."
 
+      - name: Verify deployed Cosmos Table RBAC binding
+        env:
+          RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+          FUNCTION_APP_NAME: ${{ vars.FUNCTION_APP_NAME }}
+          COSMOS_ACCOUNT_NAME: ${{ vars.COSMOS_ACCOUNT_NAME }}
+          SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+        run: |
+          set -euo pipefail
+
+          PRINCIPAL_ID="$(az functionapp identity show             --resource-group "${RESOURCE_GROUP}"             --name "${FUNCTION_APP_NAME}"             --query principalId             --output tsv)"
+
+          ACCOUNT_SCOPE="/subscriptions/${SUBSCRIPTION_ID}/resourceGroups/${RESOURCE_GROUP}/providers/Microsoft.DocumentDB/databaseAccounts/${COSMOS_ACCOUNT_NAME}"
+
+          ROLE_COUNT="$(az rest             --method get             --url "https://management.azure.com${ACCOUNT_SCOPE}/tableRoleAssignments?api-version=2023-04-15"             --query "value[?properties.principalId=='${PRINCIPAL_ID}' && contains(properties.roleDefinitionId, 'tableRoleDefinitions/00000000-0000-0000-0000-000000000002') && properties.scope=='${ACCOUNT_SCOPE}'] | length(@)"             --output tsv)"
+
+          if [[ "${ROLE_COUNT}" != "1" ]]; then
+            echo "::error::Cosmos Table Data Contributor role is not bound to the current Function App identity."
+            exit 1
+          fi
+
+          COSMOS_ENDPOINT="$(az cosmosdb show             --resource-group "${RESOURCE_GROUP}"             --name "${COSMOS_ACCOUNT_NAME}"             --query "documentEndpoint"             --output tsv)"
+
+          TABLE_ENDPOINT="$(az rest             --method get             --url "https://management.azure.com${ACCOUNT_SCOPE}?api-version=2023-04-15"             --query "properties.tableEndpoint"             --output tsv)"
+
+          if [[ -z "${TABLE_ENDPOINT}" || "${TABLE_ENDPOINT}" == "${COSMOS_ENDPOINT}" ]]; then
+            echo "::error::Cosmos Table endpoint is missing or incorrectly resolved to the document endpoint."
+            exit 1
+          fi
+
+          echo "Cosmos Table RBAC and endpoint configuration verified."
+
       - name: Deploy Function package with Flex remote build
         run: |
           set -euo pipefail
