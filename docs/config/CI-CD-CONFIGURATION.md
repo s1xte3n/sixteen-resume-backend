@@ -76,3 +76,10 @@ Frontend deployment stages:
 - Federated credential subject must be exact production environment subject.
 - Backend and frontend identities are separate.
 - Deployment permissions remain scoped to the required Azure resources.
+
+
+## Live OIDC subject correction — 2026-10-07
+
+The production GitHub OIDC assertion format observed for this account is `repo:s1xte3n@39813590/sixteen-resume-backend@1373839879:environment:production`. The backend verifier now derives this form from GitHub owner/repository IDs. The configured backend federated credential already uses this observed subject.
+
+Current backend client ID: `4e6b194b-4fd7-4d6f-8972-7c1a8d21eb8d`; service-principal object ID `81822715-5de5-4bb5-8d70-e78f3fb55c1b`.
