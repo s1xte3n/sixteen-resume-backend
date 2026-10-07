@@ -124,3 +124,13 @@ Resolved by this phase: runtime variable inventory, test-state separation, synth
 Remaining configuration gates: final HTTPS/edge service, final public hostname, final production CORS origin, live GitHub/Azure OIDC and RBAC evidence, live deployed endpoints, and production cost evidence <= R100/month.
 
 No secret value is required in source control. No API route or schema was changed.
+
+
+## Phase 5 controlled live OIDC verification — 2026-10-07
+
+| Artifact | Status | Purpose |
+|---|---|---|
+| `docs/config/OIDC-AZURE-LIVE-VERIFICATION.md` | Added — pending live evidence | Controlled manual verification procedure for GitHub → Azure OIDC, federated credential trust, and production deployment RBAC |
+| `.github/workflows/verify-azure-oidc.yml` | Added — pending execution | Manual, non-deploying verification of protected production OIDC configuration and approved resource-group RBAC |
+
+The Phase 5 gate remains **NOT PASSED** until the controlled workflow is executed successfully against the actual protected GitHub production environment and Azure tenant. Workflow existence is not live evidence.

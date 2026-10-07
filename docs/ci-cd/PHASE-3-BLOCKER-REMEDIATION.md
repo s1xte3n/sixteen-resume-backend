@@ -22,7 +22,7 @@ Audience:
 
 `api://AzureADTokenExchange`
 
-The GitHub production environment secret `AZURE_CLIENT_ID` must contain that client ID.
+The GitHub production environment **variable** `AZURE_CLIENT_ID` must contain that client ID. It is an OIDC identifier, not a secret.
 
 ## Backend deployment RBAC
 
@@ -55,12 +55,11 @@ The approved project cost ceiling must also be satisfied before any edge service
 
 No Phase 3 gate is marked passed from configuration alone. A fresh production GitHub Actions run must prove OIDC login, deployment, runtime readiness and the required public endpoint behavior.
 
-
 ## 2026-10-07 — Flex deployment failure correction
 
 The failed production deployment was isolated to two provider-contract issues, not application logic:
 
-- The deployed ARM operation used the obsolete Cosmos Table RBAC API version `2023-04-15`. The authoritative ARM template now uses `2024-08-15-preview`, which is required for Cosmos Table RBAC support.
+- The deployed ARM operation used the obsolete Cosmos Table RBAC API version `2023-04-15`. The authoritative ARM template now uses the currently approved provider version for Cosmos Table RBAC support.
 - The Function App ARM identity remains `identity.type: SystemAssigned`. The value `SystemAssignedIdentity` is valid only for `functionAppConfig.deployment.storage.authentication.type`; it must not be used for the Function App resource identity.
 
 The backend CI workflow was corrected to fail before deployment if either contract regresses and to use the current Cosmos Table RBAC API for post-deployment verification.
@@ -69,7 +68,7 @@ The observed `DEPENDENCY_UNAVAILABLE` / HTTP 503 responses are treated as downst
 
 ## Required recovery order
 
-1. Merge `fix/flex-rbac-verification` into `main`.
+1. Merge the approved infrastructure correction into `main`.
 2. Run the backend production workflow and require ARM provisioning state `Succeeded`.
 3. Require Function system-assigned identity, Storage RBAC, and Cosmos Table RBAC verification to pass.
 4. Require `GET /api/visitors` to return a successful response before accepting backend production readiness.
