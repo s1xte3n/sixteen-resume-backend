@@ -177,3 +177,17 @@ The correction is intentionally limited to the invalid setting. Functions v4, FC
 The ARM structural test now prevents reintroduction of `FUNCTIONS_WORKER_RUNTIME`.
 
 **Current production gate: BLOCKED.** The correction must pass CI and then be exercised by a fresh production workflow from `main`.
+
+
+## Phase 4 continuation — ARM provider corrections — 2026-10-07
+
+The latest controlled ARM deployment exposed two provider-level configuration defects:
+
+- Cosmos Table RBAC now uses the provider-supported Microsoft.DocumentDB/databaseAccounts/tableRoleAssignments API version 2026-03-15; the Table API, serverless capability, table-scoped role, and managed-identity authorization model are unchanged.
+- The public frontend Storage account now sets allowBlobPublicAccess: true because Azure Storage static website hosting requires anonymous public access to the $web content. This exception is limited to the frontend static website account. Runtime and deployment Storage accounts remain allowBlobPublicAccess: false and allowSharedKeyAccess: false.
+
+The workflow's live Flex verification was also aligned with the approved template by asserting that FUNCTIONS_WORKER_RUNTIME is absent.
+
+These are provider-compatibility corrections only. No API redesign, credential change, Y1 migration, direct Cosmos access, or permission broadening was introduced.
+
+**Current production gate: BLOCKED.** CI must pass, followed by a fresh production workflow from main.
