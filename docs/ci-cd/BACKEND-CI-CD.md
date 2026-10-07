@@ -166,3 +166,14 @@ The approved template is corrected to set `instanceMemoryMB` explicitly to **512
 The ARM structural test now asserts the required `instanceMemoryMB: 512` value. This correction does not change the API, storage model, Cosmos model, identity model, RBAC scopes, or deployment architecture.
 
 **Current gate: BLOCKED.** The corrected branch must pass CI and the production workflow must be rerun from `main`. The failed deployment must not be manually repaired.
+
+
+## Phase 4 continuation — Flex worker runtime setting correction — 2026-10-07
+
+The latest controlled production deployment reached the Function App resource and Azure rejected `siteConfig.appSettings.FUNCTIONS_WORKER_RUNTIME` because this setting is invalid for Flex Consumption sites. The template has been corrected by removing `FUNCTIONS_WORKER_RUNTIME` from app settings and retaining the provider-supported `functionAppConfig.runtime: { name: python, version: 3.12 }` as the runtime declaration.
+
+The correction is intentionally limited to the invalid setting. Functions v4, FC1, Linux, zero always-ready, Flex scale configuration, identity-based storage, private deployment storage, Cosmos RBAC, package deployment, and `GET /api/visitors` remain unchanged.
+
+The ARM structural test now prevents reintroduction of `FUNCTIONS_WORKER_RUNTIME`.
+
+**Current production gate: BLOCKED.** The correction must pass CI and then be exercised by a fresh production workflow from `main`.
