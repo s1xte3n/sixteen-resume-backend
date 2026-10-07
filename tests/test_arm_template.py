@@ -182,7 +182,7 @@ def test_function_uses_python_v4_and_production_table_backend() -> None:
 
     assert function["properties"]["httpsOnly"] is True
     assert settings["FUNCTIONS_EXTENSION_VERSION"] == "~4"
-    assert settings["FUNCTIONS_WORKER_RUNTIME"] == "python"
+    assert "FUNCTIONS_WORKER_RUNTIME" not in settings
     assert settings["APP_ENV"] == "production"
     assert settings["VISITOR_COUNTER_BACKEND"] == "table"
     assert settings["COSMOS_PARTITION_KEY"] == "VisitorCounter"
@@ -263,6 +263,7 @@ def test_template_contains_no_legacy_consumption_or_long_lived_credentials() -> 
         "WEBSITE_CONTENTAZUREFILECONNECTIONSTRING",
         "WEBSITE_CONTENTSHARE",
         "WEBSITE_RUN_FROM_PACKAGE",
+        "FUNCTIONS_WORKER_RUNTIME",
     )
 
     for marker in forbidden_markers:
