@@ -1,7 +1,7 @@
 # Phase 2 — Azure Functions Flex Consumption IaC Validation
 
 ## Status
-**Implementation complete; authenticated Azure validation currently BLOCKED by an ARM role-assignment naming defect; correction prepared on the implementation branch.**
+**Phase 3 verification remains BLOCKED. ARM validation is now proven directly, but a fresh production GitHub Actions run has not yet proven end-to-end deployment. The latest blocker was post-deployment Function App state verification observing an empty/non-Running state immediately after package deployment.**
 
 Y1/Linux Consumption is historical evidence only. No Y1 quota increase is required or authorized.
 
@@ -322,3 +322,14 @@ A structural test now locks the frontend Blob Service resource to API version `2
 No change was made to the Flex Consumption baseline, Function runtime, managed identity, RBAC model, Cosmos Table API, API contract, deployment authentication, or frontend application behavior.
 
 **Phase 4 gate: BLOCKED.** This correction is source/IaC evidence only. CI and a fresh production GitHub Actions deployment from `main` are still required before production deployment or runtime evidence can be marked passed.
+
+
+## Phase 3 blocker correction — Flex startup verification — 2026-10-07
+
+The backend deployment workflow now treats Flex infrastructure restart and package deployment as asynchronous operations. It waits 30 seconds after ARM provisioning before package deployment, then polls the Function App state for up to 120 seconds before failing. If the state never reaches Running, the workflow emits the live Function App state and key resource metadata before exiting non-zero.
+
+This corrects CI verification timing only. It does not add a secret, change the OIDC model, change the Flex FC1 architecture, change storage/RBAC, add WEBSITE_RUN_FROM_PACKAGE, introduce Azure Files, change the API, or manually repair production.
+
+Azure documentation confirms that Flex app settings/infrastructure updates can restart the app asynchronously and recommends waiting before code deployment; Flex package deployment remains the approved deployment mechanism.
+
+**Phase 3 gate remains BLOCKED until a fresh production main workflow proves the corrected sequence against Azure.**
