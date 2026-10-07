@@ -210,3 +210,22 @@ Still unproven until a fresh main production workflow succeeds:
 - cost <= R100/month.
 
 **Phase 4 gate: BLOCKED.**
+
+
+## Phase 4 continuation — Cosmos Table RBAC scope correction — 2026-10-07
+
+### Latest controlled deployment finding
+
+The latest ARM deployment failed while parsing the Cosmos Table role-assignment `properties.scope`. The previous value was the full Table resource ID ending in `/tables/VisitorCounter`; the current Table RBAC provider contract expects the assignment scope at the Cosmos account resource level for this resource model.
+
+### Correction
+
+`infra/azure/azuredeploy.json` now uses the Cosmos account resource ID as the `tableRoleAssignments` scope. The role definition remains the Table API data-plane role, and the application still has exactly one logical table: `VisitorCounter`. Microsoft's current Table RBAC guidance shows account-level scope for the native Table role-assignment resource. citeturn4search0turn2search0
+
+The ARM structural test was updated to lock this provider-compatible scope and prevent regression.
+
+### Evidence boundary
+
+This correction is source/IaC evidence only. ARM deployment, Function startup, Cosmos authorization, API behavior, persistence/concurrency, browser isolation, CORS, security, observability, and cost remain unproven.
+
+**Phase 4 gate: BLOCKED.**
