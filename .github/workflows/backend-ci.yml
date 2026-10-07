@@ -234,20 +234,54 @@ jobs:
           print("Deployed Flex configuration verified.")
           PY
 
-      - name: Build ready-to-run Function package
+      - name: Build Python Function deployment package
         run: |
-          python -m pip install -r requirements.txt --target .python_packages/lib/site-packages
+          rm -rf package
+          mkdir -p package
+          cp function_app.py host.json requirements.txt package/
+          cp -R src package/src
           rm -f "${PACKAGE_FILE}"
-          zip -r "${PACKAGE_FILE}"             function_app.py host.json requirements.txt src .python_packages             -x "*.pyc" -x "*/__pycache__/*"
+          (
+            cd package
+            zip -r "../${PACKAGE_FILE}" . -x "*.pyc" -x "*/__pycache__/*"
+          )
 
       - name: Wait for Flex app restart after infrastructure deployment
-        run: sleep 30
+        run: sleep 60
 
-      - name: Deploy Function package using Flex-compatible package deployment
-        uses: Azure/functions-action@v1
-        with:
-          app-name: ${{ vars.FUNCTION_APP_NAME }}
-          package: ${{ env.PACKAGE_FILE }}
+      - name: Wait for Function identity RBAC propagation
+        env:
+          RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+          FUNCTION_APP_NAME: ${{ vars.FUNCTION_APP_NAME }}
+        run: |
+          set -euo pipefail
+
+          PRINCIPAL_ID="$(az functionapp identity show             --resource-group "${RESOURCE_GROUP}"             --name "${FUNCTION_APP_NAME}"             --query principalId             --output tsv)"
+
+          for attempt in {1..18}; do
+            count="$(az rest               --method get               --url "https://management.azure.com/subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/${RESOURCE_GROUP}/providers/Microsoft.DocumentDB/databaseAccounts/${{ vars.COSMOS_ACCOUNT_NAME }}/tableRoleAssignments?api-version=2026-03-15"               --query "value[?properties.principalId=='${PRINCIPAL_ID}'] | length(@)"               --output tsv)"
+
+            if [ "${count}" = "1" ]; then
+              echo "Cosmos Table data-plane role assignment is visible."
+              break
+            fi
+
+            echo "Waiting for Cosmos Table RBAC propagation (${attempt}/18)."
+            sleep 10
+          done
+
+          storageScope="/subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/${RESOURCE_GROUP}/providers/Microsoft.Storage/storageAccounts/${{ vars.FUNCTION_STORAGE_ACCOUNT_NAME }}"
+          storageRoles="$(az rest             --method get             --url "https://management.azure.com${storageScope}/providers/Microsoft.Authorization/roleAssignments?api-version=2022-04-01&\$filter=principalId%20eq%20'${PRINCIPAL_ID}'"             --query "value[].properties.roleDefinitionId"             --output tsv)"
+
+          printf '%s\n' "${storageRoles}" | grep -q "b7e6dc6d-f1e8-4753-8033-0f276bb0955b"
+          printf '%s\n' "${storageRoles}" | grep -q "0a9a7e1f-b9d0-4cc4-a60d-0319b160aaa3"
+          printf '%s\n' "${storageRoles}" | grep -q "974c5e8b-45b9-4653-ba55-5f855dd0fb88"
+          echo "Function host storage RBAC is visible."
+
+      - name: Deploy Function package with Flex remote build
+        run: |
+          set -euo pipefail
+          az functionapp deployment source config-zip             --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}"             --name "${{ vars.FUNCTION_APP_NAME }}"             --src "${PACKAGE_FILE}"             --build-remote true
 
       - name: Verify deployed Flex app configuration and HTTP readiness
         env:
@@ -281,20 +315,29 @@ jobs:
           print("Flex app configuration verified.")
           PY
 
-          for attempt in {1..12}; do
-            if curl --fail --silent --show-error --max-time 20 \
-              "https://${FUNCTION_APP_NAME}.azurewebsites.net/api/visitors" \
-              -o /tmp/visitors-response.json; then
-              echo "Function HTTP endpoint is reachable on attempt ${attempt}/12."
-              cat /tmp/visitors-response.json
-              exit 0
-            fi
+          for attempt in {1..18}; do
+            status="$(
+              curl --silent --show-error --max-time 20                 --output /tmp/visitors-response.json                 --write-out "%{http_code}"                 "https://${FUNCTION_APP_NAME}.azurewebsites.net/api/visitors"                 || true
+            )"
 
-            echo "Function HTTP endpoint attempt ${attempt}/12 failed; waiting for Flex startup."
-            sleep 10
+            case "${status}" in
+              2??)
+                echo "Function HTTP endpoint is healthy on attempt ${attempt}/18."
+                cat /tmp/visitors-response.json
+                exit 0
+                ;;
+              *)
+                echo "Function HTTP endpoint attempt ${attempt}/18 returned HTTP ${status:-curl-error}."
+                cat /tmp/visitors-response.json || true
+                sleep 10
+                ;;
+            esac
           done
 
-          echo "Function HTTP endpoint did not become reachable within the verification window."
+          echo "Function HTTP endpoint did not become healthy within the verification window."
+          echo "Final response:"
+          cat /tmp/visitors-response.json || true
+          echo "Runtime configuration:"
           cat flex-app-runtime.json
           exit 1
       - name: Record deployment evidence
