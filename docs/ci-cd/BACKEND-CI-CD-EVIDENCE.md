@@ -157,3 +157,24 @@ The approved template is corrected to set `instanceMemoryMB` explicitly to **512
 The ARM structural test now asserts the required `instanceMemoryMB: 512` value. This correction does not change the API, storage model, Cosmos model, identity model, RBAC scopes, or deployment architecture.
 
 **Current gate: BLOCKED.** The corrected branch must pass CI and the production workflow must be rerun from `main`. The failed deployment must not be manually repaired.
+
+
+## Phase 4 continuation — Flex worker runtime setting correction — 2026-10-07
+
+### Latest production failure
+
+The controlled production ARM deployment advanced to `Microsoft.Web/sites/func-sixteen-resume` and Azure rejected:
+
+`The following app setting (Site.SiteConfig.AppSettings.FUNCTIONS_WORKER_RUNTIME) for Flex Consumption sites is invalid.`
+
+### Correction
+
+The invalid `FUNCTIONS_WORKER_RUNTIME=python` app setting has been removed from the ARM template. Python 3.12 remains explicitly declared through `functionAppConfig.runtime`, which is the Flex runtime configuration already used by the approved architecture.
+
+The structural test now asserts that `FUNCTIONS_WORKER_RUNTIME` is absent. No alternate credential, manual production repair, hosting-plan change, storage change, API change, or permission broadening was introduced.
+
+### Evidence boundary
+
+This correction is source/IaC evidence only until CI and a fresh production GitHub Actions run from `main` succeed. ARM deployment, package activation, runtime startup, API regression, persistence/concurrency, browser isolation, CORS, security, observability, and cost remain unproven.
+
+**Phase 4 gate: BLOCKED.**
