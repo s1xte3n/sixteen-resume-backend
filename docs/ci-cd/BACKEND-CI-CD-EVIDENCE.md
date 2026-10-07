@@ -227,3 +227,20 @@ A structural test now locks the frontend Blob Service resource to API version `2
 No change was made to the Flex Consumption baseline, Function runtime, managed identity, RBAC model, Cosmos Table API, API contract, deployment authentication, or frontend application behavior.
 
 **Phase 4 gate: BLOCKED.** This correction is source/IaC evidence only. CI and a fresh production GitHub Actions deployment from `main` are still required before production deployment or runtime evidence can be marked passed.
+
+
+## Phase 3 blocker correction — post-deployment Function state race — 2026-10-07
+
+The latest production workflow failure occurred at the post-package state assertion: the workflow observed an empty/non-Running state immediately after package deployment. This is not accepted as runtime failure evidence because the workflow did not allow for the documented asynchronous restart after infrastructure changes.
+
+The workflow correction is constrained to deployment sequencing and verification resilience:
+
+- wait 30 seconds after ARM infrastructure deployment;
+- deploy the ready-to-run package once;
+- poll the Function App state for up to 120 seconds;
+- fail closed if the state never becomes Running;
+- emit non-secret resource state metadata on failure.
+
+No architecture, API, credential, RBAC, hosting-plan, storage, or deployment-model change was introduced.
+
+**Evidence status: BLOCKED.** A fresh successful production workflow from main is still required before ARM deployment, package activation, runtime startup, API, persistence/concurrency, CORS, isolation, security, and cost can be marked PASS.
