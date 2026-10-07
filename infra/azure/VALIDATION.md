@@ -333,3 +333,16 @@ This corrects CI verification timing only. It does not add a secret, change the 
 Azure documentation confirms that Flex app settings/infrastructure updates can restart the app asynchronously and recommends waiting before code deployment; Flex package deployment remains the approved deployment mechanism.
 
 **Phase 3 gate remains BLOCKED until a fresh production main workflow proves the corrected sequence against Azure.**
+
+
+## Phase 3 blocker correction — Flex readiness verification — 2026-10-07
+
+The production workflow no longer treats Azure CLI Function App state as the Flex Consumption readiness signal. In the observed deployment, Azure returned an empty state value even though the Function App resource existed, causing a false-negative release failure.
+
+The workflow now verifies the deployed Flex resource configuration directly (functionapp,linux, system-assigned identity, Python 3.12, 512 MB instance memory, maximum instance count 1, private Blob deployment storage with system-assigned authentication) and then performs a bounded HTTPS smoke test against GET /api/visitors.
+
+The existing 30-second post-infrastructure wait remains because Flex infrastructure/app-setting changes can restart the app asynchronously. The readiness window remains bounded at 12 attempts with 10-second intervals.
+
+This is a verification correction only. It does not change the approved FC1 hosting model, API contract, storage/RBAC model, Cosmos model, OIDC authentication, package deployment mechanism, or frontend architecture.
+
+**Phase 3 gate:** blocked until PR #35 passes required CI and a fresh production main deployment proves the corrected verification path in Azure.
