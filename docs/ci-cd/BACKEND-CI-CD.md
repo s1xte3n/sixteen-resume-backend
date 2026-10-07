@@ -191,3 +191,14 @@ The workflow's live Flex verification was also aligned with the approved templat
 These are provider-compatibility corrections only. No API redesign, credential change, Y1 migration, direct Cosmos access, or permission broadening was introduced.
 
 **Current production gate: BLOCKED.** CI must pass, followed by a fresh production workflow from main.
+
+
+## Phase 4 continuation — Cosmos Table RBAC scope correction — 2026-10-07
+
+The latest controlled deployment exposed a Cosmos Table RBAC payload defect: the previous assignment used the full `.../tables/VisitorCounter` resource ID as `properties.scope`, which the current Table RBAC provider rejected.
+
+The template now scopes the `tableRoleAssignments` resource to the Cosmos account resource ID, matching Microsoft's documented Table RBAC assignment model. The role definition remains the Cosmos Table data-plane role, and the application continues to contain only `VisitorCounter`. citeturn4search0turn2search0
+
+No credentials, API changes, Y1 path, manual package upload, or permission broadening was introduced.
+
+**Current production gate: BLOCKED.** CI and a fresh production workflow from `main` must prove the corrected ARM deployment before runtime/API/Cosmos evidence can be marked passed.
