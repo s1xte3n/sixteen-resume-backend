@@ -91,13 +91,13 @@ def test_query_parameters_return_400_without_increment():
     assert counter.count == before
 
 
-def test_unsupported_content_type_returns_415_without_increment():
+def test_content_type_without_body_is_accepted():
     before = counter.count
     response = visitors(_request(headers={"Content-Type": "text/plain"}))
+    payload = _response_json(response)
 
-    assert response.status_code == 415
-    assert _response_json(response)["error"]["code"] == "UNSUPPORTED_MEDIA_TYPE"
-    assert counter.count == before
+    assert response.status_code == 200
+    assert payload["count"] == before + 1
 
 
 def test_body_returns_400_without_increment():

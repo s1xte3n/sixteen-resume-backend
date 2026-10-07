@@ -1,3 +1,17 @@
+## Phase 4 — API / Interface Contract
+
+| Artifact | Status | Scope |
+|---|---|---|
+| docs/api/API-CONTRACT.md | Frozen / implementation-ready | Canonical VC-001 wire contract |
+| docs/api/API-ENDPOINTS.md | Current | Public and internal interface inventory |
+| docs/api/API-SCHEMAS.md | Current | Success, error, and persistence schemas |
+| docs/api/API-ERRORS.md | Current | Canonical HTTP/error taxonomy |
+| docs/api/API-VARIABLES.md | Current | Request/response headers and fields |
+| docs/api/API-EXAMPLES.md | Current | Representative request/response examples |
+| docs/api/API-CHANGELOG.md | Current | Contract version history |
+| docs/api/openapi.yaml | Current | Machine-readable OpenAPI contract |
+| docs/api/API-CONSISTENCY-REVIEW.md | Added | Cross-repository Phase 4 gate review |
+
 # Artifact Index
 
 ## Phase 3 — Architecture

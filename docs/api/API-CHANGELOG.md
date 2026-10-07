@@ -1,9 +1,16 @@
 # API Contract Changelog
 
+## 1.1.0 — Phase 4 contract alignment
+
+- Aligned backend documentation with the frozen `GET /api/visitors` contract.
+- Removed the backend-only `415 UNSUPPORTED_MEDIA_TYPE` status from the public contract.
+- Standardized unsupported query/body input on `400 BAD_REQUEST`.
+- Standardized `count` as an integer >= 0.
+- Standardized canonical error taxonomy to 400/405/429/500/503/504.
+- Documented `X-Request-ID` as a response correlation header.
+- Preserved anonymous public access, non-idempotent counter semantics, managed-identity Cosmos access, and concurrency-safe persistence.
+- Kept browser-to-Cosmos access prohibited.
+
 ## 1.0.0 — Phase 7.1
 
-- Frozen executable visitor-counter operation: GET /api/visitors.
-- Defined UUID v4 request correlation behavior.
-- Defined query/body/content-type validation.
-- Defined canonical error envelope and dependency failure statuses.
-- Defined persistence and concurrency behavior for the global visitor counter.
+Initial executable visitor-counter contract. Superseded where it differed from the approved Phase 4 contract.
