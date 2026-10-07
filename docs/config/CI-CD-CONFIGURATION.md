@@ -92,7 +92,7 @@ Live evidence now confirms the frontend user-assigned managed identity exists an
 - Client ID: `2d19e037-cc57-462c-a950-862f9b8a80e6`
 - Principal ID: `200b60d9-b05a-4733-81f4-1053834de5c3`
 - Federated credential issuer: `https://token.actions.githubusercontent.com`
-- Federated credential subject: `repo:s1xte3n/sixteen-resume-frontend:environment:production` was superseded by the live immutable subject `repo:s1xte3n@39813590/sixteen-resume-frontend@1373840239:environment:production`.
+- Federated credential subject: `repo:s1xte3n@39813590/sixteen-resume-frontend@1373840239:environment:production` was superseded by the live immutable subject `repo:s1xte3n@39813590/sixteen-resume-frontend@1373840239:environment:production`.
 - Federated credential audience: `api://AzureADTokenExchange`
 - Frontend production `AZURE_CLIENT_ID`: `2d19e037-cc57-462c-a950-862f9b8a80e6`
 
