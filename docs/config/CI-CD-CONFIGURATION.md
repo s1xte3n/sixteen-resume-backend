@@ -10,9 +10,9 @@ Repository: `s1xte3n/sixteen-resume-backend`
 | NODE_VERSION=22 | non-secret | workflow env | CI | Azurite/tooling |
 | ARM_TEMPLATE=infra/azure/azuredeploy.json | non-secret | workflow env | deployment | IaC source |
 | PACKAGE_FILE=released-package.zip | non-secret | workflow env | deployment | package artifact |
-| AZURE_CLIENT_ID | protected identifier | production environment secret | deployment | OIDC client input |
-| AZURE_TENANT_ID | protected identifier | production environment secret | deployment | OIDC tenant input |
-| AZURE_SUBSCRIPTION_ID | protected identifier | production environment secret | deployment | OIDC subscription input |
+| AZURE_CLIENT_ID | non-secret OIDC identifier | production environment variable | deployment | OIDC client input |
+| AZURE_TENANT_ID | non-secret OIDC identifier | production environment variable | deployment | OIDC tenant input |
+| AZURE_SUBSCRIPTION_ID | non-secret OIDC identifier | production environment variable | deployment | OIDC subscription input |
 | AZURE_RESOURCE_GROUP | non-secret | production environment variable | deployment | target RG |
 | AZURE_LOCATION | non-secret | production environment variable | deployment | East US |
 | FRONTEND_STORAGE_ACCOUNT_NAME | non-secret | production environment variable | ARM | frontend Storage resource |
@@ -68,6 +68,8 @@ Frontend deployment stages:
 8. upload evidence.
 
 ## OIDC requirements
+
+`AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, and `AZURE_SUBSCRIPTION_ID` are identifiers, not credential secrets. They are supplied as protected production environment variables. No client secret, certificate, publish profile, SAS token, Cosmos key, or Storage connection string is required.
 
 - GitHub workflow permission: `id-token: write`.
 - No client secret.
