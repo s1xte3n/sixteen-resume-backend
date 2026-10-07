@@ -19,7 +19,7 @@
 - Function managed identity: narrow data-plane roles only.
 
 ## Phase 3 Blockers
-1. **Backend OIDC identity drift:** the latest backend application/client ID is 4e6b194b-4fd7-4d6f-8972-7c1a8d21eb8d with service-principal object ID 2c7e98c4-660e-4fe0-8ded-d214866080f3. Earlier RBAC work was applied to a superseded service principal and must not be treated as valid for the current workflow identity.
+1. **Backend OIDC identity drift:** the active backend application/client ID is e3f56077-0aae-4a90-bde3-d0c0ef2a35e0 with service-principal object ID 5eda2f89-4428-4c25-b93a-a1ddb1868864. Earlier RBAC work was applied to a superseded service principal and must not be treated as valid for the current workflow identity.
 2. **Backend deployment RBAC:** the current backend service principal must have Contributor plus a scoped authorization-management role capable of Microsoft.Authorization/roleAssignments/write at rg-sixteen-resume-prod before ARM can create managed-identity role assignments. Contributor alone cannot assign Azure RBAC roles.
 3. **Frontend public edge:** sixteen-resume.mooo.com times out because the created Front Door endpoint is not yet wired to an approved origin/route/custom domain.
 4. **Edge cost feasibility:** Azure Front Door Standard is not approved because its current fixed base charge conflicts with the project's R100/month recurring Azure/cloud ceiling. ADR-006 is therefore a Phase 3 architecture blocker; do not finish or retain Front Door as production infrastructure until the budget/hosting/deviation decision is explicitly resolved.
@@ -29,6 +29,7 @@
 
 - Backend GitHub Actions identity is recreated and the production deployment identity is now the current client/service-principal pair recorded above.
 - Backend deployment RBAC is scoped to the production resource group: Contributor for resource deployment plus User Access Administrator for the ARM-declared managed-identity role assignments. Owner is not used.
-- The Function App production Cosmos Table client now explicitly uses the Function App system-assigned managed identity rather than the broader DefaultAzureCredential chain. The Cosmos Table audience remains `https://cosmos.azure.com`.
+- The Flex ARM site resource is pinned to `Microsoft.Web/sites@2025-03-01` to avoid the current ARM template-schema validation failure encountered with the previous site API version.
+- The Function App production Cosmos Table client explicitly uses the Function App system-assigned managed identity rather than the broader DefaultAzureCredential chain. The Cosmos Table audience remains `https://cosmos.azure.com`.
 - The deployment workflow now fails immediately when the Cosmos Table data-plane role assignment is not visible for the current Function App identity, instead of continuing to an ambiguous HTTP smoke-test failure.
 - The public frontend edge remains a separate Phase 3 feasibility blocker; no backend API or data architecture change is introduced.
