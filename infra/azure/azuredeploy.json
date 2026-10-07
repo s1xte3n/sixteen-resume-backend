@@ -31,7 +31,7 @@
     {"type":"Microsoft.DocumentDB/databaseAccounts","apiVersion":"2023-04-15","name":"[parameters('cosmosAccountName')]","location":"[parameters('location')]","tags":"[variables('tags')]","kind":"GlobalDocumentDB","properties":{"databaseAccountOfferType":"Standard","enableAutomaticFailover":false,"enableMultipleWriteLocations":false,"disableLocalAuth":true,"publicNetworkAccess":"Enabled","networkAclBypass":"None","locations":[{"locationName":"[parameters('location')]","failoverPriority":0,"isZoneRedundant":false}],"consistencyPolicy":{"defaultConsistencyLevel":"Session"},"capabilities":[{"name":"EnableTable"},{"name":"EnableServerless"}]}},
     {"type":"Microsoft.DocumentDB/databaseAccounts/tables","apiVersion":"2022-05-15-preview","name":"[format('{0}/{1}', parameters('cosmosAccountName'), parameters('cosmosTableName'))]","dependsOn":["[resourceId('Microsoft.DocumentDB/databaseAccounts', parameters('cosmosAccountName'))]"],"properties":{"resource":{"id":"[parameters('cosmosTableName')]"}}},
     {
-      "type":"Microsoft.Web/sites","apiVersion":"2024-11-01","name":"[parameters('functionAppName')]","location":"[parameters('location')]","tags":"[variables('tags')]","kind":"functionapp,linux","identity":{"type":"SystemAssigned"},
+      "type":"Microsoft.Web/sites","apiVersion":"2025-03-01","name":"[parameters('functionAppName')]","location":"[parameters('location')]","tags":"[variables('tags')]","kind":"functionapp,linux","identity":{"type":"SystemAssigned"},
       "properties":{
         "httpsOnly":true,
         "serverFarmId":"[resourceId('Microsoft.Web/serverfarms', parameters('functionPlanName'))]",

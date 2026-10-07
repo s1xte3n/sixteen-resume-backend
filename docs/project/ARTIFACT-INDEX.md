@@ -72,3 +72,15 @@ Phase 3 remains blocked only by the authenticated production deployment RBAC/OID
 | `docs/ci-cd/PHASE-3-BLOCKER-STATUS.md` | Updated on PR #51 | Current identity, RBAC, runtime and frontend dependency status recorded. |
 
 The Phase 3 architecture remains unchanged. These are implementation/verification corrections only.
+
+
+## Phase 3 blocker correction — 2026-10-07 (Flex provider contract)
+
+| Artifact | Status | Change |
+|---|---|---|
+| `infra/azure/azuredeploy.json` | Corrected on `fix/phase3-flex-template-validation` | Function App resource API is now `Microsoft.Web/sites@2025-03-01`; the Function App managed identity remains `SystemAssigned`, while Flex deployment-storage authentication remains `SystemAssignedIdentity`. |
+| Backend deployment identity | Corrected | Active GitHub OIDC client is `e3f56077-0aae-4a90-bde3-d0c0ef2a35e0`; service-principal object is `5eda2f89-4428-4c25-b93a-a1ddb1868864`; production RG permissions are Contributor + User Access Administrator. |
+| Backend runtime readiness | Blocked | HTTP `503 DEPENDENCY_UNAVAILABLE` / timeout evidence remains downstream until the corrected ARM deployment succeeds and Cosmos Table RBAC is verified. |
+| Frontend Storage verification | Blocked | Current frontend timeout is the Azure Storage static-site reachability check; public custom-domain HTTPS remains a separate edge decision. |
+
+**Phase 3 gate remains BLOCKED.** The application/data architecture is unchanged. The remaining work is fresh deployment and runtime evidence after the provider-contract correction.

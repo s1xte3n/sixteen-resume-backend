@@ -143,6 +143,6 @@ The previously observed backend deployment identity has been replaced. The activ
 
 The runtime-side Cosmos dependency correction is also committed for review: production table access explicitly uses the Function App's system-assigned managed identity, and CI now hard-fails when the Cosmos Table data-plane role is not visible before HTTP readiness verification.
 
-The ARM template itself already has the required Function App identity value `SystemAssigned`; `SystemAssignedIdentity` is valid only for the Flex deployment-storage authentication property. A local template containing `identity.type: SystemAssignedIdentity` is invalid and must be corrected to `SystemAssigned` before validation.
+The ARM template has been corrected to use the current `Microsoft.Web/sites@2025-03-01` contract. The Function App resource identity remains `SystemAssigned`, while `SystemAssignedIdentity` remains only under Flex deployment-storage authentication, where Microsoft documents that value as valid.
 
-Frontend OIDC and Storage Blob Data Contributor are already resolved. The remaining frontend timeout is the static-site/edge verification path, not a frontend application defect. Public custom-domain HTTPS remains separately blocked by the unresolved cost-compatible edge decision.
+Frontend OIDC and Storage Blob Data Contributor are resolved. The current frontend timeout is the Azure Storage static-site reachability check; public custom-domain HTTPS remains separately blocked by the unresolved cost-compatible edge decision. Backend HTTP 503/timeout evidence remains downstream of the backend infrastructure deployment until the corrected ARM template is deployed and Cosmos Table RBAC is verified.
