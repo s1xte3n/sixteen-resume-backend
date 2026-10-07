@@ -98,3 +98,29 @@ The Phase 3 architecture remains unchanged. These are implementation/verificatio
 | Frontend Storage verification | Blocked | Current frontend timeout is the Azure Storage static-site reachability check; public custom-domain HTTPS remains a separate edge decision. |
 
 **Phase 3 gate remains BLOCKED.** The application/data architecture is unchanged. The remaining work is fresh deployment and runtime evidence after the provider-contract correction.
+
+
+## Phase 5 — Variables, Environments & Secrets
+
+| Artifact | Status | Scope |
+|---|---|---|
+| docs/config/ENVIRONMENT-VARIABLES.md | Added / canonical | Cross-system non-secret configuration inventory |
+| docs/config/ENVIRONMENT-MATRIX.md | Added / canonical | Local, test, CI, deployment, production contexts |
+| docs/config/SECRETS-MANAGEMENT.md | Added / canonical | OIDC, managed identity, credential elimination and handling |
+| docs/config/TEST-DATA.md | Added / canonical | Generated test state and synthetic data |
+| docs/config/CI-CD-CONFIGURATION.md | Added / canonical | Backend/frontend GitHub Actions configuration matrix |
+| docs/config/CONFIGURATION-VALIDATION-RULES.md | Added / canonical | Pre-implementation configuration validation rules |
+| docs/config/CONFIGURATION-DEPENDENCY-MAP.md | Added / canonical | Configuration dependency ordering |
+| docs/config/CONFIGURATION-TRACEABILITY.md | Added / canonical | Requirement/contract/deployment/ADR/test traceability |
+| docs/config/CONFIGURATION-SECURITY-REVIEW.md | Added / canonical | Configuration security findings and gates |
+| docs/config/CONFIGURATION-CHANGE-LOG.md | Added | Phase 5 change history |
+
+### Phase 5 gate status
+
+**CONFIGURATION READY: NOT PASSED — configuration gates remain explicit.**
+
+Resolved by this phase: runtime variable inventory, test-state separation, synthetic data strategy, OIDC/managed-identity credential model, CI/CD inputs, validation rules, dependency ordering, and traceability.
+
+Remaining configuration gates: final HTTPS/edge service, final public hostname, final production CORS origin, live GitHub/Azure OIDC and RBAC evidence, live deployed endpoints, and production cost evidence <= R100/month.
+
+No secret value is required in source control. No API route or schema was changed.
