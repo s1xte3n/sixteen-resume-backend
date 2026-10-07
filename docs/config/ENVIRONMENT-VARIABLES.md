@@ -89,3 +89,10 @@ No additional Azure dev/test/staging environments are approved.
 - GitHub frontend `AZURE_FRONTEND_IDENTITY_NAME` has been configured. The protected frontend `AZURE_CLIENT_ID` must be synchronized to the new UAMI client ID before verification can pass.
 - Storage Blob Data Contributor on `st16resumeweb` remains unverified because local Azure CLI role-assignment operations return `MissingSubscription` despite a valid subscription context.
 - No client secret, Storage key, SAS token, Cosmos key, or alternate authentication mechanism is authorized.
+
+
+## Live OIDC subject correction — 2026-10-07
+
+The production GitHub OIDC assertion format observed for this account is `repo:s1xte3n@39813590/sixteen-resume-backend@1373839879:environment:production`. The backend verifier now derives this form from GitHub owner/repository IDs. The configured backend federated credential already uses this observed subject.
+
+Current backend client ID: `4e6b194b-4fd7-4d6f-8972-7c1a8d21eb8d`; service-principal object ID `81822715-5de5-4bb5-8d70-e78f3fb55c1b`.
