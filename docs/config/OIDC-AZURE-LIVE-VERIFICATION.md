@@ -38,7 +38,7 @@ A successful run must prove:
 3. Azure tenant and subscription match the configured identifiers.
 4. Exactly one federated credential on the configured Entra application matches:
    - issuer: `https://token.actions.githubusercontent.com`
-   - subject: `repo:s1xte3n/sixteen-resume-backend:environment:production`
+   - subject: `repo:s1xte3n@39813590/sixteen-resume-backend@1373839879:environment:production`
    - audience: `api://AzureADTokenExchange`
 5. The configured service principal has Contributor at `rg-sixteen-resume-prod`.
 6. The configured service principal has User Access Administrator at `rg-sixteen-resume-prod`.
