@@ -112,3 +112,39 @@ The following evidence must be obtained from an authenticated production executi
 No Azure resource, deployment, runtime, persistence, frontend, API, or logging result is represented as passed without direct production evidence.
 
 No Phase 8 work is initiated by this evidence record.
+
+
+## 2026-10-07 deployment failure correction
+
+The production deployment reached the Cosmos DB Table RBAC resource and failed because `Microsoft.DocumentDB/databaseAccounts/tableRoleAssignments` was declared with API version `2023-04-15`. Azure returned `BadRequest` stating that this version is invalid or too old for RBAC support and requires a preview API version later than `2024-08-15`.
+
+### Corrective change
+
+- Changed the ARM resource API version for the Cosmos Table role assignment from `2023-04-15` to `2024-08-15-preview`.
+- No change was made to the Table data-plane role definition, Function managed identity, application contract, or Cosmos Table schema.
+- The correction is isolated to the provider API contract and is committed on branch `fix/cosmos-table-rbac-api-version`.
+- The change must be merged through the repository's required pull-request/status-check path before production deployment.
+
+### Verification consequence
+
+The earlier Function responses:
+
+- HTTP 503;
+- HTTP 000/timeouts;
+- `DEPENDENCY_UNAVAILABLE`;
+
+are treated as downstream symptoms while the infrastructure deployment is invalid. Do not classify the Python visitor-counter implementation as failed until the corrected ARM deployment succeeds and the Function managed identity has the intended Cosmos Table RBAC assignment.
+
+### Frontend timeout boundary
+
+The frontend workflow's public-hostname verification is correctly gated by `VERIFY_PUBLIC_ENDPOINT`. With that variable set to `false`, the custom hostname check is skipped. The reported frontend timeout therefore comes from the mandatory Storage static-website endpoint verification step. This is a separate infrastructure/network reachability issue and is not resolved by the Cosmos RBAC change.
+
+### Required next evidence
+
+1. Merge the ARM API-version correction.
+2. Re-run ARM validation.
+3. Re-run the production ARM deployment.
+4. Confirm the Cosmos Table role assignment is created successfully.
+5. Confirm the Function App reaches healthy state.
+6. Re-run the backend health/smoke verification.
+7. Independently diagnose the Storage static-website endpoint timeout before marking frontend deployment verification passed.
