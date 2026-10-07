@@ -12,6 +12,7 @@
 | HTTPS/hostname/CORS | REQ-AZ-005, REQ-AZ-006, REQ-AZ-SEC-004, REQ-AZ-COST-001 | DNS-001, DEP-001 | ADR-006 | VT-005, VT-006, VT-SEC-004, VT-COST-001, T-005-P, T-006-P |
 | Browser/Cosmos isolation | REQ-AZ-SEC-002 | VC-001, DB-001 | security architecture | VT-SEC-002, T-009-SEC |
 | OIDC/RBAC | REQ-AZ-SEC-001, REQ-AZ-SEC-003, REQ-AZ-013, REQ-AZ-014 | DEP-001, DEP-002 | ADR-005 | VT-SEC-001, VT-SEC-003, T-013-SEC, T-014-SEC |
+| Frontend UAMI/OIDC trust | REQ-AZ-SEC-001, REQ-AZ-014 | DEP-001 | ADR-005 | frontend controlled OIDC verification workflow |
 | Test state/data | REQ-AZ-011, REQ-AZ-015 | DEP-001/002 test interfaces | test strategy | T-011-P, T-DATA-001, T-DATA-002, T-015-E2E |
 
 ## Traceability gaps

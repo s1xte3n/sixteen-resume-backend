@@ -53,6 +53,18 @@ No additional Azure dev/test/staging environments are approved.
 | CFG-030 | PUBLIC_API_PATH | Frontend | none currently | path | No | — | Not consumed by current frontend source; API path is frozen by VC-001 | **Do not introduce as runtime configuration**; canonical path is `/api/visitors` | N/A | No | No | No | No |
 | CFG-031 | API_VERSION | Frontend/backend | none currently | string | No | — | No approved consumer | **Do not introduce**; VC-001 is the authoritative interface | N/A | No | No | No | No |
 
+## Frontend OIDC identity configuration
+
+The frontend deployment identity is a **user-assigned managed identity**, separate from the backend Entra application/service principal. The following production configuration is required by the frontend repository:
+
+| ID | Name | Component | Context | Type | Required | Source/owner | Consumption | Constraints | Commit | GitHub Actions | Azure app config | ARM parameter | Generated |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| CFG-026D | AZURE_FRONTEND_IDENTITY_NAME | Frontend CI | deployment, production | string | Yes | Azure/IaC owner | frontend OIDC verification | Must equal approved UAMI name `sixteen-resume-frontend-github` | Name only | Yes | No | No | No |
+| CFG-026E | AZURE_FRONTEND_IDENTITY_RESOURCE_GROUP | Frontend CI | deployment, production | string | Yes | Azure/IaC owner | frontend OIDC verification | Must equal approved UAMI resource group `rg-sixteen-resume-prod` | Name only | Yes | No | No | No |
+| CFG-026F | Frontend AZURE_CLIENT_ID | Frontend CI | deployment, production | UUID | Yes | Azure/GitHub identity owner | frontend OIDC login and UAMI verification | Must equal the clientId of `sixteen-resume-frontend-github`; current provisioned value is `2d19e037-cc57-462c-a950-862f9b8a80e6` | Identifier only | Yes | No | No | No |
+
+The frontend GitHub OIDC subject is frozen as `repo:s1xte3n/sixteen-resume-frontend:environment:production`.
+
 ## OIDC identifier classification
 
 `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, and `AZURE_SUBSCRIPTION_ID` are non-secret OIDC identifiers. They are supplied as protected GitHub production environment variables and are not GitHub Secrets. No long-lived Azure credential is introduced.

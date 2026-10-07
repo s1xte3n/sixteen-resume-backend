@@ -53,7 +53,7 @@ Frontend verification belongs to:
 
 The approved UAMI `sixteen-resume-frontend-github` now exists in `rg-sixteen-resume-prod` with client ID `2d19e037-cc57-462c-a950-862f9b8a80e6` and principal ID `200b60d9-b05a-4733-81f4-1053834de5c3`. Its production federated credential has been corrected to the exact approved subject and audience.
 
-The frontend verifier must now be run only after GitHub production `AZURE_CLIENT_ID` is synchronized to `2d19e037-cc57-462c-a950-862f9b8a80e6` and its Storage Blob Data Contributor assignment is present.
+The frontend verifier must be run only after the frontend UAMI exists, its GitHub federated credential exists, and its Storage Blob Data Contributor assignment is present. The federated credential subject must be the standard GitHub environment subject `repo:s1xte3n/sixteen-resume-frontend:environment:production`; repository-owner/repository-ID variants are not valid for this verification path.
 
 ## Controlled execution order
 
