@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 
 from azure.data.tables import TableServiceClient
-from azure.identity import DefaultAzureCredential
+from azure.identity import ManagedIdentityCredential
 
 from src.domain.visitor_counter import InMemoryVisitorCounter
 from src.infrastructure.table_counter import TableVisitorCounter
@@ -52,7 +52,7 @@ def build_visitor_counter():
 
         service_client = TableServiceClient(
             endpoint=endpoint,
-            credential=DefaultAzureCredential(),
+            credential=ManagedIdentityCredential(),
             audience="https://cosmos.azure.com",
         )
 
