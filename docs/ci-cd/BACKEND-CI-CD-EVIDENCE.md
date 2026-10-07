@@ -178,3 +178,35 @@ The structural test now asserts that `FUNCTIONS_WORKER_RUNTIME` is absent. No al
 This correction is source/IaC evidence only until CI and a fresh production GitHub Actions run from `main` succeed. ARM deployment, package activation, runtime startup, API regression, persistence/concurrency, browser isolation, CORS, security, observability, and cost remain unproven.
 
 **Phase 4 gate: BLOCKED.**
+
+
+## Phase 4 continuation — ARM provider corrections — 2026-10-07
+
+### Latest controlled deployment findings
+
+The latest production ARM execution advanced beyond the prior RBAC/Function configuration defects but failed on two independent provider validations:
+
+- Cosmos Table role assignment rejected API version 2023-04-15 as too old for RBAC support. The template now uses 2026-03-15.
+- Frontend static website configuration rejected the staticWebsite settings while the frontend Storage account had allowBlobPublicAccess=false. The template now enables public Blob access only for the public static website account.
+
+The backend workflow verification was also corrected so the deployed settings must not contain FUNCTIONS_WORKER_RUNTIME; Flex runtime declaration remains solely in functionAppConfig.runtime.
+
+### Evidence boundary
+
+These changes are source/IaC corrections. They do not constitute successful production deployment evidence.
+
+Still unproven until a fresh main production workflow succeeds:
+
+- complete ARM deployment;
+- subscription-specific Flex capacity;
+- live Function configuration and startup;
+- package activation;
+- Storage and Cosmos managed-identity authorization;
+- API regression;
+- persistence and concurrency;
+- browser/Cosmos isolation;
+- CORS;
+- security and observability;
+- cost <= R100/month.
+
+**Phase 4 gate: BLOCKED.**
