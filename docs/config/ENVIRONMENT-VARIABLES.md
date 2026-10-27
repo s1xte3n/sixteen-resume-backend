@@ -63,7 +63,7 @@ The frontend deployment identity is a **user-assigned managed identity**, separa
 | CFG-026E | AZURE_FRONTEND_IDENTITY_RESOURCE_GROUP | Frontend CI | deployment, production | string | Yes | Azure/IaC owner | frontend OIDC verification | Must equal approved UAMI resource group `rg-sixteen-resume-prod` | Name only | Yes | No | No | No |
 | CFG-026F | Frontend AZURE_CLIENT_ID | Frontend CI | deployment, production | UUID | Yes | Azure/GitHub identity owner | frontend OIDC login and UAMI verification | Must equal the clientId of `sixteen-resume-frontend-github`; current provisioned value is `2d19e037-cc57-462c-a950-862f9b8a80e6` | Identifier only | Yes | No | No | No |
 
-The frontend GitHub OIDC subject is frozen as `repo:s1xte3n/sixteen-resume-frontend:environment:production`.
+The frontend GitHub OIDC subject is frozen as `repo:s1xte3n@39813590/sixteen-resume-frontend@1373840239:environment:production`.
 
 ## OIDC identifier classification
 
@@ -97,7 +97,7 @@ The frontend GitHub OIDC subject is frozen as `repo:s1xte3n/sixteen-resume-front
 ## Controlled live verification correction — 2026-10-07
 
 - Frontend UAMI `sixteen-resume-frontend-github` has now been provisioned in `rg-sixteen-resume-prod` with client ID `2d19e037-cc57-462c-a950-862f9b8a80e6` and principal ID `200b60d9-b05a-4733-81f4-1053834de5c3`.
-- Its production federated credential was corrected to subject `repo:s1xte3n/sixteen-resume-frontend:environment:production` and audience `api://AzureADTokenExchange`.
+- Its production federated credential was corrected to subject `repo:s1xte3n@39813590/sixteen-resume-frontend@1373840239:environment:production` and audience `api://AzureADTokenExchange`.
 - GitHub frontend `AZURE_FRONTEND_IDENTITY_NAME` has been configured. The protected frontend `AZURE_CLIENT_ID` must be synchronized to the new UAMI client ID before verification can pass.
 - Storage Blob Data Contributor on `st16resumeweb` remains unverified because local Azure CLI role-assignment operations return `MissingSubscription` despite a valid subscription context.
 - No client secret, Storage key, SAS token, Cosmos key, or alternate authentication mechanism is authorized.
@@ -108,3 +108,19 @@ The frontend GitHub OIDC subject is frozen as `repo:s1xte3n/sixteen-resume-front
 The production GitHub OIDC assertion format observed for this account is `repo:s1xte3n@39813590/sixteen-resume-backend@1373839879:environment:production`. The backend verifier now derives this form from GitHub owner/repository IDs. The configured backend federated credential already uses this observed subject.
 
 Current backend client ID: `4e6b194b-4fd7-4d6f-8972-7c1a8d21eb8d`; service-principal object ID `81822715-5de5-4bb5-8d70-e78f3fb55c1b`.
+
+## 2026-10-07 controlled frontend OIDC verification correction
+
+Live evidence now confirms the frontend user-assigned managed identity exists and the protected GitHub production variables have been populated:
+
+- UAMI: `sixteen-resume-frontend-github`
+- Client ID: `2d19e037-cc57-462c-a950-862f9b8a80e6`
+- Principal ID: `200b60d9-b05a-4733-81f4-1053834de5c3`
+- Federated credential issuer: `https://token.actions.githubusercontent.com`
+- Federated credential subject: `repo:s1xte3n@39813590/sixteen-resume-frontend@1373840239:environment:production` was superseded by the live immutable subject `repo:s1xte3n@39813590/sixteen-resume-frontend@1373840239:environment:production`.
+- Federated credential audience: `api://AzureADTokenExchange`
+- Frontend production `AZURE_CLIENT_ID`: `2d19e037-cc57-462c-a950-862f9b8a80e6`
+
+The controlled workflow subsequently demonstrated that the frontend identity itself can authenticate only after Azure federation matches the exact live subject. Storage RBAC verification must use data-plane operations; a `Storage Blob Data Contributor` assignment does not grant `Microsoft.Storage/storageAccounts/read`, so `az storage account show` is not an appropriate least-privilege verification step.
+
+Phase 5 remains **NOT PASSED** until a fresh frontend controlled workflow run succeeds from the corrected workflow revision and the remaining production edge/CORS/cost gates are independently evidenced.
